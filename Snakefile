@@ -81,7 +81,7 @@ rule refine:
         tree = "results/tree.nwk",
         node_data = "results/branch_lengths.json",
     params:
-        root = 'residual',
+        root = 'min_dev',
         coal = 'opt'
     shell:
         """
