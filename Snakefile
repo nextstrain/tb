@@ -3,33 +3,27 @@ rule all:
         auspice_tree = "auspice/tb_tree.json",
         auspice_meta = "auspice/tb_meta.json"
 
-# Config variables to be used by rules
-# Parameters are defined within their own rules
+#names of files used in the analysis
+seq_file = "data/lee_2015.vcf.gz",
+ref_file = "data/ref.fasta",
+meta_file = "data/meta.tsv",
+exclude_file = "config/dropped_strains.txt",
+mask_file = "config/Locus_to_exclude_Mtb.bed",
+drms_file = "config/DRMs-AAnuc.tsv",
+sites_file = "config/drm_sites.txt",
+generef_file = "config/Mtb_H37Rv_NCBI_Annot.gff",
+genes_file = "config/genes.txt",
+clades_file = "config/clades.tsv",
+colors_file = "config/color.tsv",
+config_file = "config/config.json",
+geo_info_file = "config/lat_longs.tsv"
 
-rule config:
-    params:
-        seq = "data/lee_2015.vcf.gz",
-        ref = "data/ref.fasta",
-        meta = "data/meta.tsv",
-        exclude = "config/dropped_strains.txt",
-        mask = "config/Locus_to_exclude_Mtb.bed",
-        drms = "config/DRMs-AAnuc.tsv",
-        sites = "config/drm_sites.txt",
-        generef = "config/Mtb_H37Rv_NCBI_Annot.gff",
-        genes = "config/genes.txt",
-        clades = "config/clades.tsv",
-        colors = "config/color.tsv",
-        config = "config/config.json",
-        geo_info = "config/lat_longs.tsv"
-
-config = rules.config.params #so we can use config.x rather than rules.config.params.x
-#end of config definition
 
 rule filter:
     input:
-        seq = config.seq,
-        meta = config.meta,
-        exclude = config.exclude
+        seq = seq_file,
+        meta = meta_file,
+        exclude = exclude_file
     output:
         "results/filtered.vcf.gz"
     shell:
@@ -43,7 +37,7 @@ rule filter:
 rule mask:
     input:
         seq = rules.filter.output,
-        mask = config.mask
+        mask = mask_file
     output:
        "results/masked.vcf.gz"
     shell:
@@ -56,8 +50,8 @@ rule mask:
 rule tree:
     input:
         aln = rules.mask.output,
-        ref = config.ref,
-        sites = config.sites
+        ref = ref_file,
+        sites = sites_file
     output:
         "results/tree_raw.nwk"
     params:
@@ -75,8 +69,8 @@ rule refine:
     input:
         tree = rules.tree.output,
         aln = rules.mask.output,
-        metadata = config.meta,
-        ref = config.ref
+        metadata = meta_file,
+        ref = ref_file
     output:
         tree = "results/tree.nwk",
         node_data = "results/branch_lengths.json",
@@ -100,7 +94,7 @@ rule ancestral:
     input:
         tree = rules.refine.output.tree,
         alignment = rules.mask.output,
-        ref = config.ref
+        ref = ref_file
     output:
         nt_data = "results/nt_muts.json",
         vcf_out = "results/nt_muts.vcf"
@@ -119,10 +113,10 @@ rule ancestral:
 rule translate:
     input:
         tree = rules.refine.output.tree,
-        ref = config.ref,
-        gene_ref = config.generef,
+        ref = ref_file,
+        gene_ref = generef_file,
         vcf = rules.ancestral.output.vcf_out,
-        genes = config.genes
+        genes = genes_file
     output:
         aa_data = "results/aa_muts.json",
         vcf_out = "results/translations.vcf",
@@ -144,7 +138,7 @@ rule clades:
         tree = rules.refine.output.tree,
         aa_muts = rules.translate.output.aa_data,
         nuc_muts = rules.ancestral.output.nt_data,
-        clades = config.clades
+        clades = clades_file
     output:
         clade_data = "results/clades.json"
     shell:
@@ -158,7 +152,7 @@ rule clades:
 rule traits:
     input:
         tree = rules.refine.output.tree,
-        meta = config.meta
+        meta = meta_file
     output:
         "results/traits.json"
     params:
@@ -174,10 +168,10 @@ rule traits:
 rule seqtraits:
     input:
         align = rules.ancestral.output.vcf_out,
-        ref = config.ref,
+        ref = ref_file,
         trans_align = rules.translate.output.vcf_out,
         trans_ref = rules.translate.output.vcf_ref,
-        drms = config.drms
+        drms = drms_file
     output:
         drm_data = "results/drms.json"
     params:
@@ -199,15 +193,15 @@ rule seqtraits:
 rule export:
     input:
         tree = rules.refine.output.tree,
-        metadata = config.meta,
+        metadata = meta_file,
         branch_lengths = rules.refine.output.node_data,
         traits = rules.traits.output,
         nt_muts = rules.ancestral.output.nt_data,
         aa_muts = rules.translate.output.aa_data,
         drms = rules.seqtraits.output.drm_data,
-        color_defs = config.colors,
-        config = config.config,
-        geo_info = config.geo_info,
+        color_defs = colors_file,
+        config = config_file,
+        geo_info = geo_info_file,
         clades = rules.clades.output.clade_data
     output:
         tree = rules.all.input.auspice_tree,
