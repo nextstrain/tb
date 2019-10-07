@@ -4,18 +4,18 @@ rule all:
         auspice_meta = "auspice/tb_meta.json"
 
 #names of files used in the analysis
-seq_file = "data/lee_2015.vcf.gz",
-ref_file = "data/ref.fasta",
-meta_file = "data/meta.tsv",
-exclude_file = "config/dropped_strains.txt",
-mask_file = "config/Locus_to_exclude_Mtb.bed",
-drms_file = "config/DRMs-AAnuc.tsv",
-sites_file = "config/drm_sites.txt",
-generef_file = "config/Mtb_H37Rv_NCBI_Annot.gff",
-genes_file = "config/genes.txt",
-clades_file = "config/clades.tsv",
-colors_file = "config/color.tsv",
-config_file = "config/config.json",
+seq_file = "data/lee_2015.vcf.gz"
+ref_file = "data/ref.fasta"
+meta_file = "data/meta.tsv"
+exclude_file = "config/dropped_strains.txt"
+mask_file = "config/Locus_to_exclude_Mtb.bed"
+drms_file = "config/DRMs-AAnuc.tsv"
+sites_file = "config/drm_sites.txt"
+generef_file = "config/Mtb_H37Rv_NCBI_Annot.gff"
+genes_file = "config/genes.txt"
+clades_file = "config/clades.tsv"
+colors_file = "config/color.tsv"
+config_file = "config/config.json"
 geo_info_file = "config/lat_longs.tsv"
 
 
