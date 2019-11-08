@@ -1,7 +1,6 @@
 rule all:
     input:
-        auspice_tree = "auspice/tb_tree.json",
-        auspice_meta = "auspice/tb_meta.json"
+        auspice_json = "auspice/tb.json",
 
 #names of files used in the analysis
 seq_file = "data/lee_2015.vcf.gz"
@@ -204,18 +203,23 @@ rule export:
         geo_info = geo_info_file,
         clades = rules.clades.output.clade_data
     output:
-        tree = rules.all.input.auspice_tree,
-        meta = rules.all.input.auspice_meta
+        auspice_json = rules.all.input.auspice_json,
     shell:
         """
-        augur export \
+        augur export v2 \
             --tree {input.tree} \
             --metadata {input.metadata} \
             --node-data {input.branch_lengths} {input.traits} {input.drms} {input.aa_muts} {input.nt_muts} {input.clades} \
             --auspice-config {input.config} \
             --colors {input.color_defs} \
             --lat-longs {input.geo_info} \
-            --output-tree {output.tree} \
-            --output-meta {output.meta}
-        augur validate --json {output.tree} {output.meta}
+            --output {output.auspice_json} \
         """
+
+rule clean:
+    message: "Removing directories: {params}"
+    params:
+        "results ",
+        "auspice"
+    shell:
+        "rm -rfv {params}"

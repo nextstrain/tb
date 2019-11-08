@@ -1,32 +1,29 @@
-{ 
- "title": "TB outbreak in Nunavik, Canada", 
- "color_options": {
+{
+ "title": "TB outbreak in Nunavik, Canada",
+ "colorings": {
   "gt": {
-   "menuItem": "genotype", 
-   "legendTitle": "Genotype", 
-   "type": "discrete", 
+   "Title": "Genotype",
+   "type": "discrete",
    "key": "genotype"
   },
   "num_date": {
-   "menuItem": "date", 
-   "legendTitle": "Sampling date", 
-   "type": "continuous", 
+   "Title": "Sampling date",
+   "type": "continuous",
    "key": "num_date"
   },
   "clade_membership": {
-   "menuItem": "Clade",
-   "legendTitle": "Clade",
+   "Title": "Clade",
    "type": "discrete",
    "key": "clade_membership"
   },
   "location": {
   }
  },
- "geo": [
+ "geo_resolutions": [
    "location"
  ],
  "filters": [
-  "location", 
+  "location",
   "clade_membership",
   "authors"
  ],
