@@ -136,10 +136,10 @@ division	west_virginia	38.4758406	-80.8408414
 division	wisconsin	44.4308975	-89.6884636
 division	wyoming	43.1700264	-107.5685347
 
-location    village_k	58.86214	-68.587027
-location    village_c	59.626697	-77.753784
-location    village_a	58.03277900000001	-77.182204
-location    village_d	62.518122	-76.800653
-location    village_e	59.326912	-65.557907
-location    village_b	62.001829	-72.614497
-location    other_village	59.665522	-73.32893
+location	village_k	58.86214	-68.587027
+location	village_c	59.626697	-77.753784
+location	village_a	58.03277900000001	-77.182204
+location	village_d	62.518122	-76.800653
+location	village_e	59.326912	-65.557907
+location	village_b	62.001829	-72.614497
+location	other_village	59.665522	-73.32893

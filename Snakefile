@@ -208,7 +208,7 @@ rule export:
         meta = rules.all.input.auspice_meta
     shell:
         """
-        augur export \
+        augur export v1 \
             --tree {input.tree} \
             --metadata {input.metadata} \
             --node-data {input.branch_lengths} {input.traits} {input.drms} {input.aa_muts} {input.nt_muts} {input.clades} \
@@ -217,5 +217,4 @@ rule export:
             --lat-longs {input.geo_info} \
             --output-tree {output.tree} \
             --output-meta {output.meta}
-        augur validate --json {output.tree} {output.meta}
         """
