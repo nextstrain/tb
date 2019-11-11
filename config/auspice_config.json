@@ -27,6 +27,6 @@
   "author"
  ],
   "maintainers": [
-    ["Emma Hodcroft", "https://neherlab.org/emma-hodcroft.html"]
+    {"name": "Emma Hodcroft", "url": "https://neherlab.org/emma-hodcroft.html"}
   ]
 }
