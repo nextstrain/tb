@@ -1,5 +1,9 @@
 {
  "title": "TB outbreak in Nunavik, Canada",
+ "maintainers": [
+   {"name": "Emma Hodcroft", "url": "https://neherlab.org/emma-hodcroft.html"}
+ ],
+ "build_url": "https://github.com/nextstrain/tb",
  "colorings": [
   {
    "key": "gt",
@@ -29,8 +33,5 @@
   "location",
   "clade_membership",
   "author"
- ],
-  "maintainers": [
-    {"name": "Emma Hodcroft", "url": "https://neherlab.org/emma-hodcroft.html"}
-  ]
+ ]
 }
