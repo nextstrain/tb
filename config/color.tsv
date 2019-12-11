@@ -1,14 +1,10 @@
-region	north_america	#807dba
-
-country	canada	#bcbddc
-
-location	village_a	#7fc97f
-location	village_b	#beaed4
-location	village_c	#fdc086
-location	village_d	#ffff99
-location	village_e	#386cb0
-location	village_k	#f0027f
-location	other_village	#bf5b17
+location	village a	#7fc97f
+location	village b	#beaed4
+location	village c	#fdc086
+location	village d	#ffff99
+location	village e	#386cb0
+location	village k	#f0027f
+location	other village	#bf5b17
 
 cluster	Mj-I	#a6cee3
 cluster	Mj-II	#fb9a99

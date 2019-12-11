@@ -1,9 +1,8 @@
 rule all:
     input:
-        auspice_tree = "auspice/tb_tree.json",
-        auspice_meta = "auspice/tb_meta.json"
+        auspice_json = "auspice/tb.json",
 
-#names of files used in the analysis
+# names of files used in the analysis
 seq_file = "data/lee_2015.vcf.gz"
 ref_file = "data/ref.fasta"
 meta_file = "data/meta.tsv"
@@ -15,7 +14,7 @@ generef_file = "config/Mtb_H37Rv_NCBI_Annot.gff"
 genes_file = "config/genes.txt"
 clades_file = "config/clades.tsv"
 colors_file = "config/color.tsv"
-config_file = "config/config.json"
+auspice_config_file = "config/auspice_config.json"
 geo_info_file = "config/lat_longs.tsv"
 
 
@@ -106,7 +105,7 @@ rule ancestral:
             --alignment {input.alignment} \
             --vcf-reference {input.ref} \
             --inference {params.inference} \
-            --output {output.nt_data} \
+            --output-node-data {output.nt_data} \
             --output-vcf {output.vcf_out}
         """
 
@@ -128,7 +127,7 @@ rule translate:
             --ancestral-sequences {input.vcf} \
             --genes {input.genes} \
             --reference-sequence {input.gene_ref} \
-            --output {output.aa_data} \
+            --output-node-data {output.aa_data} \
             --alignment-output {output.vcf_out} \
             --vcf-reference-output {output.vcf_ref}
         """
@@ -146,7 +145,7 @@ rule clades:
         augur clades --tree {input.tree} \
             --mutations {input.nuc_muts} {input.aa_muts} \
             --clades {input.clades} \
-            --output {output.clade_data}
+            --output-node-data {output.clade_data}
         """
 
 rule traits:
@@ -162,7 +161,7 @@ rule traits:
         augur traits --tree {input.tree} \
             --metadata {input.meta} \
             --columns {params.traits} \
-            --output {output}
+            --output-node-data {output}
         """
 
 rule seqtraits:
@@ -187,7 +186,7 @@ rule seqtraits:
             --features {input.drms} \
             --count {params.count} \
             --label {params.label} \
-            --output {output.drm_data}
+            --output-node-data {output.drm_data}
         """
 
 rule export:
@@ -200,21 +199,27 @@ rule export:
         aa_muts = rules.translate.output.aa_data,
         drms = rules.seqtraits.output.drm_data,
         color_defs = colors_file,
-        config = config_file,
+        auspice_config = auspice_config_file,
         geo_info = geo_info_file,
         clades = rules.clades.output.clade_data
     output:
-        tree = rules.all.input.auspice_tree,
-        meta = rules.all.input.auspice_meta
+        auspice_json = rules.all.input.auspice_json,
     shell:
         """
-        augur export v1 \
+        augur export v2 \
             --tree {input.tree} \
             --metadata {input.metadata} \
             --node-data {input.branch_lengths} {input.traits} {input.drms} {input.aa_muts} {input.nt_muts} {input.clades} \
-            --auspice-config {input.config} \
+            --auspice-config {input.auspice_config} \
             --colors {input.color_defs} \
             --lat-longs {input.geo_info} \
-            --output-tree {output.tree} \
-            --output-meta {output.meta}
+            --output {output.auspice_json} \
         """
+
+rule clean:
+    message: "Removing directories: {params}"
+    params:
+        "results ",
+        "auspice"
+    shell:
+        "rm -rfv {params}"
