@@ -174,7 +174,7 @@ rule seqtraits:
     output:
         drm_data = "results/drms.json"
     params:
-        count = "traits",
+        field_to_count = "traits",
         label = "Drug_Resistance"
     shell:
         """
@@ -184,7 +184,7 @@ rule seqtraits:
             --translations {input.trans_align} \
             --vcf-translate-reference {input.trans_ref} \
             --features {input.drms} \
-            --count {params.count} \
+            --count {params.field_to_count} \
             --label {params.label} \
             --output-node-data {output.drm_data}
         """
