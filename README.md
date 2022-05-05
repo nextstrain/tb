@@ -1,5 +1,7 @@
 # nextstrain.org/tb
 
+[![Build Status](https://github.com/nextstrain/tb/actions/workflows/ci.yaml/badge.svg?branch=master)](https://github.com/nextstrain/tb/actions/workflows/ci.yaml)
+
 This is the [Nextstrain](https://nextstrain.org/) build for tuberculosis, visible at [nextstrain.org/tb](https://nextstrain.org/tb).
 
 The build encompasses preparing data for analysis, doing quality control, performing analyses, and saving the results in a format suitable for visualization (with [auspice][]). 
