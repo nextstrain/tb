@@ -35,7 +35,7 @@ rule filter:
 
 rule mask:
     input:
-        seq = rules.filter.output,
+        seq = "results/filtered.vcf.gz",
         mask = mask_file
     output:
        "results/masked.vcf.gz"
@@ -48,7 +48,7 @@ rule mask:
 
 rule tree:
     input:
-        aln = rules.mask.output,
+        aln = "results/masked.vcf.gz",
         ref = ref_file,
         sites = sites_file
     output:
@@ -66,8 +66,8 @@ rule tree:
 
 rule refine:
     input:
-        tree = rules.tree.output,
-        aln = rules.mask.output,
+        tree = "results/tree_raw.nwk",
+        aln = "results/masked.vcf.gz",
         metadata = meta_file,
         ref = ref_file
     output:
@@ -91,8 +91,8 @@ rule refine:
 
 rule ancestral:
     input:
-        tree = rules.refine.output.tree,
-        alignment = rules.mask.output,
+        tree = "results/tree.nwk",
+        alignment = "results/masked.vcf.gz",
         ref = ref_file
     output:
         nt_data = "results/nt_muts.json",
@@ -111,10 +111,10 @@ rule ancestral:
 
 rule translate:
     input:
-        tree = rules.refine.output.tree,
+        tree = "results/tree.nwk",
         ref = ref_file,
         gene_ref = generef_file,
-        vcf = rules.ancestral.output.vcf_out,
+        vcf = "results/nt_muts.vcf",
         genes = genes_file
     output:
         aa_data = "results/aa_muts.json",
@@ -134,9 +134,9 @@ rule translate:
 
 rule clades:
     input:
-        tree = rules.refine.output.tree,
-        aa_muts = rules.translate.output.aa_data,
-        nuc_muts = rules.ancestral.output.nt_data,
+        tree = "results/tree.nwk",
+        aa_muts = "results/aa_muts.json",
+        nuc_muts = "results/nt_muts.json",
         clades = clades_file
     output:
         clade_data = "results/clades.json"
@@ -150,7 +150,7 @@ rule clades:
 
 rule traits:
     input:
-        tree = rules.refine.output.tree,
+        tree = "results/tree.nwk",
         meta = meta_file
     output:
         "results/traits.json"
@@ -166,10 +166,10 @@ rule traits:
 
 rule seqtraits:
     input:
-        align = rules.ancestral.output.vcf_out,
+        align = "results/nt_muts.vcf",
         ref = ref_file,
-        trans_align = rules.translate.output.vcf_out,
-        trans_ref = rules.translate.output.vcf_ref,
+        trans_align = "results/translations.vcf",
+        trans_ref = "results/translations_reference.fasta",
         drms = drms_file
     output:
         drm_data = "results/drms.json"
@@ -191,17 +191,17 @@ rule seqtraits:
 
 rule export:
     input:
-        tree = rules.refine.output.tree,
+        tree = "results/tree.nwk",
         metadata = meta_file,
-        branch_lengths = rules.refine.output.node_data,
-        traits = rules.traits.output,
-        nt_muts = rules.ancestral.output.nt_data,
-        aa_muts = rules.translate.output.aa_data,
-        drms = rules.seqtraits.output.drm_data,
+        branch_lengths = "results/branch_lengths.json",
+        traits = "results/traits.json",
+        nt_muts = "results/nt_muts.json",
+        aa_muts = "results/aa_muts.json",
+        drms = "results/drms.json",
         color_defs = colors_file,
         auspice_config = auspice_config_file,
         geo_info = geo_info_file,
-        clades = rules.clades.output.clade_data
+        clades = "results/clades.json"
     output:
         auspice_json = rules.all.input.auspice_json,
     shell:
