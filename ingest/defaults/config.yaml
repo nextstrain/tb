@@ -1,0 +1,5 @@
+field_map:
+  genome_id: accession_bvbrc
+  sra_accession: accession_sra
+  collection_year: date
+  isolation_country: country

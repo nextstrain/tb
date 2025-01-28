@@ -1,0 +1,245 @@
+"""
+Fetch sequence data and metadata from BV-BRC, run snippy & tbprofiler
+"""
+# The workflow filepaths are written relative to this Snakefile's base directory
+workdir: workflow.current_basedir
+
+# Use default configuration values. Override with Snakemake's --configfile/--config options.
+configfile: "defaults/config.yaml"
+
+with open("defaults/samplelist_assemblies.tsv", "r", encoding="utf-8") as assemblylist:
+    samplenames = [line.strip() for line in list(assemblylist)[1:]]
+
+rule all:
+    input:
+        expand("data/assemblies/{sample}.fna", sample=samplenames),
+        expand("data/snippy/{sample}/snps.vcf.gz", sample=samplenames),
+        expand("data/snippy/{sample}/snps.consensus.fa", sample=samplenames),
+        "results/clean.full.aln",
+        "results/all.vcf.gz",
+        "data/tbprofiler/results/tbprofiler_all.txt",
+        "results/metadata.tsv"
+
+# The BV-BRC data API limits the maximum number of records that can be retrieved 
+# in a single query to 25,000. Since there are approximately 40,000 tb assemblies 
+# in the BV-BRC, we download the metadata in two chunks and then combine them.
+# Also, the BV-BRC output has quotation marks around all field entries, and so we
+# remove them here.
+rule fetch_bvbrc_metadata:
+    """Fetch all tb metadata from bvbrc"""
+    output:
+        metadata_all="data/metadata_all.tsv",
+    benchmark:
+        "benchmarks/fetch_bvbrc_assemblies.txt"
+    conda:
+        "envs/tsv-utils.yaml"
+    shell:
+        """
+        curl --header "Accept: text/tsv" \
+        "https://www.bv-brc.org/api/genome/?eq(taxon_id,1773)&limit(25000,1)" > \
+        data/metadata_chunk1.tsv
+        curl --header "Accept: text/tsv" \
+        "https://www.bv-brc.org/api/genome/?eq(taxon_id,1773)&limit(25000,25001)" > \
+        data/metadata_chunk2.tsv
+        tsv-append -H data/metadata_chunk1.tsv data/metadata_chunk2.tsv > {output.metadata_all}
+        """
+
+rule filter_metadata:
+    input:
+        metadata_all="data/metadata_all.tsv",
+        sample_list="defaults/samplelist_assemblies.tsv"
+    output:
+        metadata_subset="data/metadata_subset.tsv",
+    benchmark:
+        "benchmarks/filter_metadata.txt"
+    conda:
+        "envs/tsv-utils.yaml"
+    shell:
+        """
+        csv2tsv --csv-delim $'\t' {input.metadata_all} | \
+        tsv-join -H --filter-file {input.sample_list} \
+        --key-fields genome_id | \
+        tsv-select -H -f genome_id,sra_accession,collection_year,isolation_country \
+        > {output.metadata_subset}
+        """
+
+def format_field_map(field_map: dict[str, str]) -> str:
+    """
+    Format dict to `"key1"="value1" "key2"="value2"...` for use in shell commands.
+    """
+    return " ".join([f'"{key}"="{value}"' for key, value in field_map.items()])
+
+rule curate_metadata:
+    input:
+        metadata_subset="data/metadata_subset.tsv",
+    output:
+        metadata="data/metadata_curate.tsv",
+    params:
+        field_map=format_field_map(config["field_map"]),
+    benchmark:
+        "benchmarks/curate_metadata.txt"
+    conda:
+        "envs/nextstrain.yaml"
+    shell:
+        """
+        augur curate passthru \
+        --metadata {input.metadata_subset} \
+        | augur curate rename  \
+        --field-map {params.field_map} \
+        | augur curate format-dates \
+        --date-fields date \
+        --expected-date-formats "%Y" \
+        --output-metadata {output.metadata}
+        """
+
+rule fetch_bvbrc_assemblies:
+    output:
+        expand("data/assemblies/{sample}.fna", sample=samplenames),
+    benchmark:
+        "benchmarks/fetch_bvbrc_assemblies.txt"
+    shell:
+        """
+        for i in `tail -n +2 defaults/samplelist_assemblies.tsv`; \
+		do wget -P data/assemblies -qN "ftp://ftp.bvbrc.org/genomes/$i/$i.fna"; done
+        """
+
+# Note that snippy requires the reference genome to be a gbff file
+rule snippy:
+    input:
+        assembly="data/assemblies/{sample}.fna"
+    output:
+        outdir=directory("data/snippy/{sample}"),
+        vcf="data/snippy/{sample}/snps.vcf.gz",
+        consensus="data/snippy/{sample}/snps.consensus.fa",
+        bam="data/snippy/{sample}/snps.bam"
+    params:
+        ref="defaults/GCF_000195955.2_ASM19595v2_genomic.gbff"
+    benchmark:
+        "benchmarks/snippy_{sample}.txt"
+    conda:
+        "envs/snippy.yaml"
+    shell:
+        """
+        snippy --outdir {output.outdir} \
+        --ctgs {input.assembly} \
+        --ref {params.ref} \
+        --force
+        """
+
+rule combine_align:
+    input:
+        samples=expand("data/snippy/{sample}", sample=samplenames),
+    output:
+        alignment="data/snippy/core.full.aln",
+    params:
+        ref="defaults/GCF_000195955.2_ASM19595v2_genomic.fna",
+        prefix="data/snippy/core"
+    benchmark:
+        "benchmarks/snippy_combine_align.txt"
+    conda:
+        "envs/snippy.yaml"
+    shell:
+        """
+        snippy-core --ref {params.ref} \
+        {input.samples} \
+        --prefix {params.prefix}
+        """
+
+rule clean_align:
+    input:
+        alignment="data/snippy/core.full.aln"
+    output:
+        clean_alignment="results/clean.full.aln",
+    benchmark:
+        "benchmarks/snippy_clean_align.txt"
+    conda:
+        "envs/snippy.yaml"
+    shell:
+        """
+        snippy-clean_full_aln \
+        {input.alignment} \
+        > {output.clean_alignment}
+        """
+
+rule combine_vcfs:
+    input:
+        samples=expand("data/snippy/{sample}/snps.vcf.gz", sample=samplenames),
+    output:
+        vcf="results/all.vcf.gz"
+    benchmark:
+        "benchmarks/snippy_combine_align.txt"
+    conda:
+        "envs/bcftools.yaml"
+    shell:
+        """
+        bcftools merge {input.samples} \
+        -Oz -o {output.vcf} \
+        --missing-to-ref
+        """
+
+# tb-profiler can take bam files as input, and snippy outputs simulated bam files
+# from assembly contig inputs, which means we can run tb-profiler using snippy output.
+# Since the bam files were aligned using snippy rather than tb-profiler's default reference, we need to replace 
+# the default reference genome that is used by tb-profiler with the
+# reference we used for snippy alignment, using the --match_ref command
+# in tb-profiler. Note that we also had to manually change the chromosome name 
+# in the reference genome from "NC_000962.3" to "NC_000962" because that 
+# is the chromosome name in the gbff file that snippy used for alignment.
+rule tbprofiler:
+    input:
+        bam="data/snippy/{sample}/snps.bam"
+    output:
+        "data/tbprofiler/results/{sample}.results.txt"
+    params:
+        ref="defaults/GCF_000195955.2_ASM19595v2_genomic.fna",
+        outdir="data/tbprofiler"
+    benchmark:
+        "benchmarks/tbprofiler_{sample}.txt"
+    conda:
+        "envs/tb-profiler.yaml"
+    shell:
+        """
+        tb-profiler update_tbdb \
+        --match_ref {params.ref}
+        tb-profiler profile \
+        -a {input.bam} \
+        -p {wildcards.sample} \
+        --txt --dir {params.outdir}
+        """
+
+rule tbprofiler_collate:
+    input:
+       expand("data/tbprofiler/results/{sample}.results.txt", sample=samplenames)
+    output:
+        "data/tbprofiler/results/tbprofiler_all.txt"
+    params:
+        prefix="data/tbprofiler/results/tbprofiler_all"
+    benchmark:
+        "benchmarks/tbprofiler_collate.txt"
+    conda:
+        "envs/tb-profiler.yaml"
+    shell:
+        """
+        tb-profiler collate \
+        --prefix {params.prefix} \
+        --dir data/tbprofiler/results
+        """
+
+rule merge_tbprofiler_metadata:
+    input:
+        metadata_curate="data/metadata_curate.tsv",
+        tbprofiler_output="data/tbprofiler/results/tbprofiler_all.txt"
+    output:
+        metadata="results/metadata.tsv",
+    benchmark:
+        "benchmarks/curate_metadata.txt"
+    conda:
+        "envs/nextstrain.yaml"
+    shell:
+        """
+        augur merge \
+        --metadata bvbrc={input.metadata_curate} \
+        tbprofiler={input.tbprofiler_output} \
+        --metadata-id-columns 'accession_bvbrc' 'sample' \
+        --output-metadata {output.metadata}
+        """

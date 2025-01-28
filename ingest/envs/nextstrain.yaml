@@ -1,0 +1,6 @@
+channels:
+  - conda-forge
+  - bioconda
+  - default
+dependencies:
+  - augur=27.1.0
