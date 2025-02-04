@@ -1,0 +1,149 @@
+{
+ "title": "Testing",
+ "maintainers": [
+   {"name": "Kim Andrews", "url": "https://bedford.io/team/kim-andrews"}
+ ],
+ "build_url": "https://github.com/nextstrain/tb",
+ "colorings": [
+  {
+   "key": "gt",
+   "title": "Genotype",
+   "type": "categorical"
+  },
+  {
+   "key": "num_date",
+   "title": "Sampling date",
+   "type": "continuous"
+  },
+  {
+    "key": "country",
+    "title": "Country",
+    "type": "categorical"
+  },
+  {
+    "key": "target_median_depth",
+    "title": "Target median depth",
+    "type": "continuous"
+  },
+  {
+    "key": "pct_reads_mapped",
+    "title": "Percent reads mapped",
+    "type": "continuous"
+  },
+  {
+    "key": "num_reads_mapped",
+    "title": "Number mapped reads",
+    "type": "continuous"
+  },
+  {
+    "key": "num_dr_variants",
+    "title": "Number drug res variants",
+    "type": "categorical"
+  },
+  {
+    "key": "num_other_variants",
+    "title": "Number other variants",
+    "type": "categorical"
+  },
+  {
+    "key": "rifampicin",
+    "title": "rifampicin",
+    "type": "categorical"
+  },
+  {
+    "key": "isoniazid",
+    "title": "isoniazid",
+    "type": "categorical"
+  },
+  {
+    "key": "ethambutol",
+    "title": "ethambutol",
+    "type": "categorical"
+  },
+  {
+    "key": "pyrazinamide",
+    "title": "pyrazinamide",
+    "type": "categorical"
+  },
+  {
+    "key": "moxifloxacin",
+    "title": "moxifloxacin",
+    "type": "categorical"
+  },
+  {
+    "key": "levofloxacin",
+    "title": "levofloxacin",
+    "type": "categorical"
+  },
+  {
+    "key": "bedaquiline",
+    "title": "bedaquiline",
+    "type": "categorical"
+  },
+  {
+    "key": "delamanid",
+    "title": "delamanid",
+    "type": "categorical"
+  },
+  {
+    "key": "pretomanid",
+    "title": "pretomanid",
+    "type": "categorical"
+  },
+  {
+    "key": "linezolid",
+    "title": "linezolid",
+    "type": "categorical"
+  },
+  {
+    "key": "streptomycin",
+    "title": "streptomycin",
+    "type": "categorical"
+  },
+  {
+    "key": "amikacin",
+    "title": "amikacin",
+    "type": "categorical"
+  },
+  {
+    "key": "kanamycin",
+    "title": "kanamycin",
+    "type": "categorical"
+  },
+  {
+    "key": "capreomycin",
+    "title": "capreomycin",
+    "type": "categorical"
+  },
+  {
+    "key": "clofazimine",
+    "title": "clofazimine",
+    "type": "categorical"
+  },
+  {
+    "key": "ethionamide",
+    "title": "ethionamide",
+    "type": "categorical"
+  },
+  {
+    "key": "para-aminosalicylic_acid",
+    "title": "para-aminosalicylic_acid",
+    "type": "categorical"
+  },
+  {
+    "key": "cycloserine",
+    "title": "cycloserine",
+    "type": "categorical"
+  }
+
+ ],
+ "geo_resolutions": [
+   "country"
+ ],
+ "filters": [
+  "country"
+ ],
+ "display_defaults": {
+  "distance_measure": "div"
+}
+}
