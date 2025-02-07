@@ -14,13 +14,12 @@ Required input files:
 * `ingest/defaults/samplelist.tsv`: List of SRA accessions to be downloaded and analyzed.
 * `ingest/defaults/metadata.tsv`: Metadata for each sample.
 
-Example input files for 5 samples are provided in `ingest/example_data`
-
 Running the workflow:
 ```
 cd ingest
 snakemake --cores 1 --use-conda --conda-frontend conda
 ```
+Example input files for 5 samples are provided in `ingest/example_data`
 
 ## Usage: phylogenetic_fasta workflow
 Required input files:
@@ -32,6 +31,7 @@ Running the workflow:
 cd phylogenetic_fasta
 nextstrain build .
 ```
+Example input files for 5 samples are provided in `phylogenetic_fasta/example_data`
 
 ## Usage: phylogenetic_vcf workflow
 Required input files:
@@ -43,6 +43,7 @@ Running the workflow:
 cd phylogenetic_vcf
 nextstrain build .
 ```
+Example input files for 5 samples are provided in `phylogenetic_vcf/example_data`
 
 ## Example output 
 
