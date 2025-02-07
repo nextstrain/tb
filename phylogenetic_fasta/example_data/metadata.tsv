@@ -1,0 +1,6 @@
+accession_sra	accession_bvbrc	date	country	main_lineage	sub_lineage	spoligotype	drtype	target_median_depth	pct_reads_mapped	num_reads_mapped	num_dr_variants	num_other_variants	rifampicin	isoniazid	ethambutol	pyrazinamide	moxifloxacin	levofloxacin	bedaquiline	delamanid	pretomanid	linezolid	streptomycin	amikacin	kanamycin	capreomycin	clofazimine	ethionamide	para-aminosalicylic_acid	cycloserine
+SRR2086486	1773.707	2003-XX-XX	Thailand	lineage1	lineage1.2.1.2.1	-	Sensitive	1047.0	98.93	48322088	0	69	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+SRR2086487	1773.706	2003-XX-XX	Thailand	lineage1	lineage1.2.1.2.1	-	Sensitive	895.0	98.58	42559335	0	70	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+SRR1723514	1773.21236	2007-XX-XX	China	lineage2	lineage2.2.1	-	Sensitive	64.0	79.76	3546041	0	33	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+SRR1723971	1773.21648	2007-XX-XX	China	lineage4	lineage4.4.2	-	RR-TB	60.0	87.77	3738634	1	27	"rpoB p.His445Asp (0.96)"	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+SRR1723744	1773.21438	2007-XX-XX	China	lineage2	lineage2.2.1	-	RR-TB	41.0	92.4	2678739	3	41	"rpoB p.Ser450Leu (1.00)"	-	-	"pncA p.Thr47Ala (0.27), pncA p.Val139Leu (0.37)"	-	-	-	-	-	-	-	-	-	-	-	-	-	-
