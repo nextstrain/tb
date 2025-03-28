@@ -2,4 +2,4 @@ channels:
   - conda-forge
   - bioconda
 dependencies:
-  - bcftools=1.21
+  - parallel-fastq-dump=0.6.7-0
