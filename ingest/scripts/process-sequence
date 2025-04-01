@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+# Makes tb-profiler and snippy result files available for a sample, either by
+# downloading from S3 or running the tools and uploading to S3 so they can be
+# downloaded in the future.
+
+set -euo pipefail
+
+
+sra_id=$1
+# sra_id=SRR19320509
+
+cores=4
+
+s3_bucket="fh-pi-bedford-t-eco-public"
+
+
+main() {
+    check-aws
+    get-tb-profiler-files
+    get-snippy-files
+}
+
+
+check-aws() {
+    if ! command -v aws &> /dev/null; then
+        echo "Error: AWS CLI is not available." >&2
+        exit 1
+    fi
+
+    if ! aws s3 ls "s3://${s3_bucket}" > /dev/null 2>&1; then
+        echo "Error: Unable to access s3://${s3_bucket}." >&2
+        exit 1
+    fi
+}
+
+
+fastq_dir="data/fastq"
+mkdir -p "${fastq_dir}"
+
+# For all samples
+fastq1="${fastq_dir}/${sra_id}_1.fastq.gz"
+# For paired-end samples
+fastq2="${fastq_dir}/${sra_id}_2.fastq.gz"
+
+
+get-fastq() {
+    if [[ ! -f "${fastq1}" ]]; then
+        echo "Downloading fastq files…" >&2
+        parallel-fastq-dump --split-files --gzip --sra-id "${sra_id}" --threads "${cores}" --outdir "${fastq_dir}"
+
+        if [[ ! -f "${fastq1}" ]]; then
+            echo "Error: FASTQ file _1.fastq.gz not found for ${sra_id}" >&2
+            exit 1
+        fi
+    fi
+}
+
+
+get-tb-profiler-files() {
+    # Download files if available on S3, otherwise run tb-profiler and upload files.
+    tb_profiler_out="data/tbprofiler"
+    mkdir -p "${tb_profiler_out}"
+
+    local_path="${tb_profiler_out}/results/${sra_id}.results.json"
+    s3_path="files/workflows/tb/${local_path}"
+
+    if aws s3api head-object --bucket "${s3_bucket}" --key "${s3_path}" > /dev/null 2>&1; then
+        echo "Found tb-profiler results on S3. Downloading to ${local_path} …" >&2
+        aws s3 cp "s3://${s3_bucket}/${s3_path}" "${local_path}"
+    else
+        get-fastq
+
+        echo "Running tb-profiler…" >&2
+
+        if [[ -f "${fastq2}" ]]; then
+            tb-profiler profile -1 "${fastq1}" -2 "${fastq2}" -p "${sra_id}" --txt --dir "${tb_profiler_out}"
+        else
+            tb-profiler profile -1 "${fastq1}"                -p "${sra_id}" --txt --dir "${tb_profiler_out}"
+        fi
+
+        echo "Uploading results to S3…" >&2
+        aws s3 cp "${local_path}" "s3://${s3_bucket}/${s3_path}"
+    fi
+}
+
+
+get-snippy-files() {
+    # Download files if available on S3, otherwise run snippy and upload files.
+    snippy_out="data/snippy/${sra_id}"
+    mkdir -p "${snippy_out}"
+
+    local_path="${snippy_out}"
+    s3_path="files/workflows/tb/${local_path}"
+
+    if [ "$(aws s3api list-objects-v2 --bucket "${s3_bucket}" --prefix "${s3_path}" --query "Contents[]")" != "null" ]; then
+        echo "Found snippy results on S3. Downloading to ${local_path} …" >&2
+        aws s3 cp --recursive "s3://${s3_bucket}/${s3_path}" "${local_path}"
+    else
+        get-fastq
+
+        echo "Running snippy…" >&2
+
+        reference="defaults/GCF_000195955.2_ASM19595v2_genomic.gbff"
+
+        if [[ -f "${fastq2}" ]]; then
+            snippy --outdir "${snippy_out}" \
+                --R1 "${fastq1}" \
+                --R2 "${fastq2}" \
+                --ref "${reference}" \
+                --force
+        else
+            snippy --outdir "${snippy_out}" \
+                --se "${fastq1}" \
+                --ref "${reference}" \
+                --force
+        fi
+
+        echo "Uploading results to S3…" >&2
+        aws s3 cp --recursive "${local_path}" "s3://${s3_bucket}/${s3_path}"
+    fi
+}
+
+main

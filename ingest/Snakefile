@@ -7,21 +7,20 @@ workdir: workflow.current_basedir
 
 configfile: "defaults/config.yaml"
 
-# All samples (paired end and single end) should have a *_1.fastq.gz file
-# Paired end samples should also have a *_2.fastq.gz file
 rule all:
     input:
-        metadata_stats="results/metadata_stats.tsv",
+        metadata_stats="data/metadata_stats.tsv"
 
 rule download:
     """Downloading metadata from data.nextstrain.org"""
+    # FIXME: query from AWS-hosted SRA metadata
     output:
         metadata_raw = "data/metadata_raw.tsv"
     params:
         metadata_url = "https://data.nextstrain.org/files/workflows/tb/tb_metadata_illumina_20250211.tsv"
     shell:
         """
-        curl -fsSL {params.metadata_url:q} --output {output.metadata_raw}
+        curl -fsSL {params.metadata_url:q} --output {output.metadata_raw:q}
         """
 
 def format_field_map(field_map: dict[str, str]) -> str:
@@ -33,26 +32,24 @@ def format_field_map(field_map: dict[str, str]) -> str:
 rule curate:
     input:
         metadata_raw = "data/metadata_raw.tsv",
-        annotations=config["curate"]["annotations"],
+        annotations = config["curate"]["annotations"],
     output:
         metadata_curate = "data/metadata_curate.tsv"
     log:
         "logs/curate.txt"
     benchmark:
         "benchmarks/curate.txt"
-    conda:
-        "envs/nextstrain.yaml"
     params:
-        field_map=format_field_map(config["curate"]["field_map"]),
-        strain_regex=config["curate"]["strain_regex"],
-        strain_backup_fields=config["curate"]["strain_backup_fields"],
-        date_fields=config["curate"]["date_fields"],
-        expected_date_formats=config["curate"]["expected_date_formats"],
-        articles=config["curate"]["titlecase"]["articles"],
-        abbreviations=config["curate"]["titlecase"]["abbreviations"],
-        titlecase_fields=config["curate"]["titlecase"]["fields"],
-        annotations_id=config["curate"]["annotations_id"],
-        id_field=config["curate"]["output_id_field"],
+        field_map = format_field_map(config["curate"]["field_map"]),
+        strain_regex = config["curate"]["strain_regex"],
+        strain_backup_fields = config["curate"]["strain_backup_fields"],
+        date_fields = config["curate"]["date_fields"],
+        expected_date_formats = config["curate"]["expected_date_formats"],
+        articles = config["curate"]["titlecase"]["articles"],
+        abbreviations = config["curate"]["titlecase"]["abbreviations"],
+        titlecase_fields = config["curate"]["titlecase"]["fields"],
+        annotations_id = config["curate"]["annotations_id"],
+        id_field = config["curate"]["output_id_field"],
     shell:
         """
         augur curate passthru \
@@ -77,201 +74,95 @@ rule curate:
                 --output-metadata {output.metadata_curate} 2>> {log}
         """
 
-# rule filter_subsample:
-#     input:
-#         metadata_curate = "data/metadata_curate.tsv"
-#     output:
-#         metadata_subsample = "data/metadata_subsample.tsv"
-#     log:
-#         "logs/filter_subsample.txt",
-#     benchmark:
-#         "benchmarks/filter_subsample.txt"
-#     conda:
-#         "envs/nextstrain.yaml"
-#     shell:
-#         """
-#         augur filter \
-#             --metadata {input.metadata_curate} \
-#             --metadata-id-columns accession \
-#             --query "(mbases > 180 & (country != 'Uncalculated'))" \
-# 	        --group-by country year \
-# 	        --sequences-per-group 1 \
-# 	        --min-date 2022 \
-# 	        --output-metadata {output.metadata_subsample}
-#         """
-
-rule fetch_fastq:
+rule filter_subsample:
     input:
-        metadata_subsample = "data/metadata_raw.tsv"
+        metadata_curate = "data/metadata_curate.tsv"
     output:
-        "data/samples_downloaded.tsv"
+        metadata_subsample = "data/metadata_subsample.tsv"
     log:
-        "logs/fetch_fastq.txt",
+        "logs/filter_subsample.txt"
     benchmark:
-        "benchmarks/fetch_fastq.txt"
-    conda:
-        "envs/parallel-fastq-dump.yaml"
+        "benchmarks/filter_subsample.txt"
     shell:
+        # temporarily including a single SRA accession for testing purposes
+        # FIXME: use commented version below
+        r"""
+        augur filter \
+            --metadata {input.metadata_curate:q} \
+            --exclude-all \
+            --include-where accession=SRR19320509 \
+            --output-metadata {output.metadata_subsample} \
+        2>&1 | tee {log}
         """
-        python scripts/fetch_fastq.py
-        """
+        # FIXME: make some options configurable
+        # r"""
+        # augur filter \
+        #     --metadata {input.metadata_curate:q} \
+        #     --metadata-id-columns accession \
+        #     --query "(mbases > 180 & (country != 'Uncalculated'))" \
+	    #     --group-by country year \
+	    #     --sequences-per-group 1 \
+	    #     --min-date 2022 \
+	    #     --output-metadata {output.metadata_subsample} \
+        # 2>&1 | tee {log}
+        # """
 
-# Runs tb-profiler on each sample & then runs `tb-profiler collate` to 
-# summarize results (quality control metrics, lineage assignments, drug 
-# resistant mutations).
-# This analysis uses the default reference database provided by tb-profiler.
-# The syntax for tb-profiler commands is different for samples that 
-# have paired end (PE) vs. single end (SE) reads.
-rule tbprofiler:
+rule process_sequences:
     input:
-        "data/samples_downloaded.tsv"
+        metadata_subsample = "data/metadata_subsample.tsv"
     output:
-        "data/tbprofiler/results/tbprofiler_all.txt"
-    log:
-        "logs/tbprofiler.txt",
-    benchmark:
-        "benchmarks/tbprofiler.txt"
-    conda:
-        "envs/tb-profiler.yaml"
+        tbprofiler_summary = "data/tbprofiler_summary.txt",
+        snippy_summary = "data/snippy_summary.tsv",
     shell:
-        """
-        python scripts/tb-profiler.py
-        """
-
-# Runs snippy analysis on each sample & then runs summarize_snippy.py to
-# calculate & collate quality control metrics for each sample.
-# Snippy requires the reference genome to be a gbff file.
-# The syntax for snippy commands is different for samples that 
-# have paired end (PE) vs. single end (SE) reads.
-rule snippy:
-    input:
-        "data/samples_downloaded.tsv"
-    output:
-        "data/snippy/snippy_summary_stats.tsv"
-    benchmark:
-        "benchmarks/snippy.txt"
-    conda:
-        "envs/snippy_python.yaml"
-    shell:
-        """
-        python scripts/snippy.py
+        r"""
+        ./scripts/process-sequences {input.metadata_subsample:q} {output.tbprofiler_summary:q} {output.snippy_summary:q}
         """
 
-# # Get an updated metadata file in case some samples did not successfully download from SRA
-# # This rule involves a "left join", which augur merge cannot do, but tsv-utils can.
-# rule metadata_downloaded_samples:
-#     input:
-#         downloaded_samples = "data/samples_downloaded.tsv",
-#         metadata_curate = "data/metadata_curate.tsv",
-#     output:
-#         metadata_downloaded_samples="data/metadata_downloaded_samples.tsv",
-#     log:
-#         "logs/merge_metadata.txt"
-#     benchmark:
-#         "benchmarks/merge_metadata.txt"
-#     conda:
-#         "envs/tsv-utils.yaml"
-#     shell:
-#         """
-#         tsv-join -H \
-#         --filter-file {input.downloaded_samples} \
-#         --key-fields accession \
-#         {input.metadata_curate} \
-#         2> {log} > {output.metadata_downloaded_samples}
-#         """
 
-# tbprofiler output has Windows line endings, which tsv-utils cannot handle, but augur merge can.
 rule merge_metadata:
+    # NOTE: tbprofiler output has Windows line endings, which tsv-utils cannot handle, but augur merge can.
     input:
         metadata_curate="data/metadata_curate.tsv",
-        tbprofiler_output="data/tbprofiler/results/tbprofiler_all.txt",
-        snippy_summary="data/snippy/snippy_summary_stats.tsv"
+        tbprofiler_summary = "data/tbprofiler_summary.txt",
+        snippy_summary = "data/snippy_summary.tsv",
     output:
-        metadata_stats="results/metadata_stats.tsv",
+        metadata_stats="data/metadata_stats.tsv"
     benchmark:
         "benchmarks/merge_metadata.txt"
-    conda:
-        "envs/nextstrain.yaml"
     shell:
         """
         augur merge \
-        --metadata ncbi={input.metadata_curate} \
-        tbprofiler={input.tbprofiler_output} \
-        snippy={input.snippy_summary} \
-        --metadata-id-columns 'accession' 'sample' 'ID' \
-        --output-metadata {output.metadata_stats}
+            --metadata ncbi={input.metadata_curate:q} \
+                tbprofiler={input.tbprofiler_summary:q} \
+                snippy={input.snippy_summary:q} \
+            --metadata-id-columns \
+                accession \
+                sample \
+                ID \
+            --output-metadata {output.metadata_stats:q}
         """
 
-# # Filter out poor-quality samples and samples that are M. canetti.
-# # Filter out samples with main_lineage:';' which indicates unclear 
-# # lineage assignments by tb-profiler.
-# rule filter_qc:
-#     input:
-#         metadata_stats="data/metadata_stats.tsv",
-#     output:
-#         metadata="results/metadata.tsv",
-#     log:
-#         "logs/filter_qc.txt"
-#     benchmark:
-#         "benchmarks/filter_qc.txt"
-#     conda:
-#         "envs/tsv-utils.yaml"
-#     shell:
-#         """
-#         tsv-filter --header --gt  pct_reads_mapped:80 data/metadata_stats.tsv \
-#         | tsv-filter --header --gt  target_median_depth:30 \
-#         | tsv-filter --header --gt  ALIGNED:3529226 \
-#         | tsv-filter --header --str-eq main_lineage:M.canetti  --invert \
-#         | tsv-filter --header --regex main_lineage:';' --invert \
-#         > {output.metadata}
-#         """
-
-# # Note that we had to manually change the chromosome name in the reference 
-# # genome from "NC_000962.3" to "NC_000962" because that is the chromosome 
-# # name in the gbff file that snippy used for alignment.
-# rule combine_align:
-#     input:
-#         metadata="results/metadata.tsv"
-#     output:
-#         alignment="data/snippy/core.full.aln"
-#     params:
-#         ref="defaults/GCF_000195955.2_ASM19595v2_genomic.fna",
-#         prefix="data/snippy/core"
-#     benchmark:
-#         "benchmarks/snippy_combine_align.txt"
-#     conda:
-#         "envs/snippy.yaml"
-#     shell:
-#         """
-#         python scripts/snippy_combine_align.py {input.metadata} {params.prefix} {params.ref}
-#         """
-
-# rule clean_align:
-#     input:
-#         alignment="data/snippy/core.full.aln"
-#     output:
-#         clean_alignment="results/clean.full.aln",
-#     benchmark:
-#         "benchmarks/snippy_clean_align.txt"
-#     conda:
-#         "envs/snippy.yaml"
-#     shell:
-#         """
-#         snippy-clean_full_aln \
-#         {input.alignment} \
-#         > {output.clean_alignment}
-#         """
-
-# rule combine_vcfs:
-#     input:
-#         metadata="results/metadata.tsv"
-#     output:
-#         vcf="results/all.vcf.gz"
-#     benchmark:
-#         "benchmarks/snippy_combine_vcf.txt"
-#     conda:
-#         "envs/bcftools.yaml"
-#     shell:
-#         """
-#         python3 scripts/combine_vcfs.py {input.metadata} {output.vcf}
-#         """
+rule filter_qc:
+    """
+    Filter out poor-quality samples and samples that are M. canetti.
+    Filter out samples with main_lineage:';' which indicates unclear 
+    lineage assignments by tb-profiler.
+    """
+    # FIXME: filter out samples that failed to process
+    input:
+        metadata_stats="data/metadata_stats.tsv"
+    output:
+        metadata="results/metadata.tsv"
+    log:
+        "logs/filter_qc.txt"
+    benchmark:
+        "benchmarks/filter_qc.txt"
+    shell:
+        """
+        tsv-filter --header --gt  pct_reads_mapped:80 {input.metadata_stats:q} \
+        | tsv-filter --header --gt  target_median_depth:30 \
+        | tsv-filter --header --gt  ALIGNED:3529226 \
+        | tsv-filter --header --str-eq main_lineage:M.canetti  --invert \
+        | tsv-filter --header --regex main_lineage:';' --invert \
+        > {output.metadata:q}
+        """

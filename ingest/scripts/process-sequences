@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# Get and summarize outputs of tb-profiler, snippy for all samples
+# Created with help of ChatGPT o3-mini-high
+set -euo pipefail
+
+# Check for correct number of arguments
+if [ "$#" -ne 3 ]; then
+  echo "Usage: $0 <metadata_subsample> <tbprofiler_summary> <snippy_summary>"
+  exit 1
+fi
+
+# Assign command-line arguments to variables
+metadata_file="$1"
+tbprofiler_summary="$2"
+snippy_summary="$3"
+
+# Verify that the metadata file exists
+if [ ! -f "$metadata_file" ]; then
+  echo "Metadata file '$metadata_file' not found."
+  exit 1
+fi
+
+# Determine the column number for 'accession' from the header
+acc_col=$(head -n 1 "$metadata_file" | awk -F'\t' '{
+    for (i = 1; i <= NF; i++) {
+        if ($i == "accession") {
+            print i;
+            exit;
+        }
+    }
+}')
+
+# Ensure the 'accession' column was found
+if [ -z "$acc_col" ]; then
+  echo "'accession' column not found in $metadata_file"
+  exit 1
+fi
+
+echo "Found 'accession' in column number: $acc_col"
+
+# Process each sample in the metadata file (skip header)
+tail -n +2 "$metadata_file" | awk -F'\t' -v col="$acc_col" '{print $col}' | while read -r sample; do
+  # Skip empty lines
+  if [ -z "$sample" ]; then
+    continue
+  fi
+  echo "Processing sequences for $sample"
+  ./scripts/process-sequence "$sample"
+done
+
+# Once all samples are processed, run the final summary commands
+echo "Running summarize_snippy..."
+./scripts/summarize_snippy.py data/snippy "$snippy_summary"
+
+echo "Running tb-profiler collate..."
+tb-profiler collate --dir data/tbprofiler/results --prefix "${tbprofiler_summary%.txt}"
+
+echo "All tasks completed."

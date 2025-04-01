@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import os
 import sys
 from Bio import SeqIO
@@ -40,7 +42,7 @@ def parse_vcf(vcf_file):
                 variant_positions.add(int(columns[1]))
     return variant_positions
 
-def generate_core_txt(base_dir):
+def generate_core_txt(base_dir, output_filename):
     fasta_files = find_files(base_dir, "snps.aligned.fa")
     vcf_files = {os.path.basename(os.path.dirname(f)): f for f in find_files(base_dir, "snps.vcf")}
     
@@ -56,8 +58,7 @@ def generate_core_txt(base_dir):
         else:
             variants[seq_id] = set()
     
-    output_file = os.path.join(base_dir, "snippy_summary_stats.tsv")
-    with open(output_file, "w") as out:
+    with open(output_filename, "w") as out:
         header = "\t".join(["ID", "LENGTH", "ALIGNED", "UNALIGNED", "VARIANT", "HET", "MASKED", "LOWCOV"]) + "\n"
         out.write(header)
         
@@ -67,11 +68,12 @@ def generate_core_txt(base_dir):
             line = "\t".join(map(str, [sample_id, stats["length"], stats["aligned"], stats["unaligned"], variant_count, stats["het"], stats["masked"], stats["lowcov"]])) + "\n"
             out.write(line)
     
-    print(f"Generated {output_file}")
+    print(f"Generated {output_filename}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate snippy_summary_stats.tsv from aligned FASTA files and VCF files.")
-    parser.add_argument("--base_dir", required=True, help="Base directory containing subdirectories with aligned FASTA and VCF files")
+    parser.add_argument("base_dir", help="Base directory containing subdirectories with aligned FASTA and VCF files")
+    parser.add_argument("output_filename", help="Output filename for the summary statistics")
     
     args = parser.parse_args()
-    generate_core_txt(args.base_dir)
+    generate_core_txt(args.base_dir, args.output_filename)

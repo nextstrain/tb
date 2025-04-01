@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+# Run a crawler to make the Athena DB reflect latest SRA data on S3, then run a
+# query to get metadata for tuberculosis samples.
+# Created with help of ChatGPT o1
+# FIXME: parameterize inputs
+
+AWS_DEFAULT_REGION="us-east-1"
+
+
+main() {
+    run-crawler
+    run-query
+}
+
+
+run-crawler() {
+    CRAWLER_NAME="sra-s3-crawler"
+
+    echo "Starting Glue crawler: ${CRAWLER_NAME}..."
+    aws glue start-crawler --name "${CRAWLER_NAME}"
+
+    # Wait for the crawler to finish
+    crawler_state="RUNNING"
+    while [ "${crawler_state}" == "RUNNING" ]; do
+      echo "Crawler state is ${crawler_state}. Sleeping for 10 seconds..."
+      sleep 10
+      crawler_state=$(aws glue get-crawler \
+        --name "${CRAWLER_NAME}" \
+        --query 'Crawler.State' \
+        --output text)
+    done
+
+    # When done, crawler state will be either READY or STOPPING, both of which
+    # are acceptable.
+    # <https://docs.aws.amazon.com/glue/latest/dg/aws-glue-api-crawler-crawling.html#aws-glue-api-crawler-crawling-Crawler>
+    # FIXME: exit if a crawler run has failed
+}
+
+
+run-query() {
+    ATHENA_DATABASE="sra"
+    S3_OUTPUT_LOCATION="s3://fh-pi-bedford-t-blab-sra-queries/tb-script/"
+    RESULTS_FILENAME="data/metadata_sra.csv"
+    QUERY_FILE="scripts/query.sql"
+
+    # Start query
+    query_id=$(aws athena start-query-execution \
+      --query-string "$(< $QUERY_FILE)" \
+      --query-execution-context Database="${ATHENA_DATABASE}" \
+      --result-configuration OutputLocation="${S3_OUTPUT_LOCATION}" \
+      --output text)
+
+    if [ -z "${query_id}" ]; then
+      echo "Failed to start query execution."
+      exit 1
+    fi
+
+    echo "Query Execution ID: ${query_id}"
+
+    # Wait for the query to finish
+    query_state="RUNNING"
+    while [ "${query_state}" == "RUNNING" ] || [ "${query_state}" == "QUEUED" ]; do
+      echo "Current status is '${query_state}'. Sleeping for 5 seconds..."
+      sleep 5
+      query_state=$(aws athena get-query-execution \
+        --query-execution-id "${query_id}" \
+        --query 'QueryExecution.Status.State' \
+        --output text)
+    done
+
+    # Check final status and download results if succeeded
+    if [ "${query_state}" == "SUCCEEDED" ]; then
+      echo "Query succeeded. Downloading CSV results..."
+      
+      # Query results should be at this location
+      S3_CSV="${S3_OUTPUT_LOCATION}${query_id}.csv"
+      
+      # Copy results from S3 to local machine
+      aws s3 cp "${S3_CSV}" "${RESULTS_FILENAME}"
+
+      if [ $? -eq 0 ]; then
+        echo "Results downloaded to ${RESULTS_FILENAME}."
+      else
+        echo "Failed to download results from S3."
+        exit 1
+      fi
+
+    elif [ "${query_state}" == "FAILED" ]; then
+      echo "Query failed."
+      exit 1
+    else
+      echo "Query ended with status: ${query_state}"
+      exit 1
+    fi
+}
+
+main
