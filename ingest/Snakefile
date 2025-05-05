@@ -1,84 +1,197 @@
 """
-Fetch fastq sequence data from NCBI SRA, run snippy & tbprofiler
-
-Required input = defaults/samplelist.tsv, defaults/metadata.tsv
+Fetch metadata from NCBI SRA, filter and subsample, fetch fastq files, run snippy & tbprofiler
 
 """
 # The workflow filepaths are written relative to this Snakefile's base directory
 workdir: workflow.current_basedir
 
-# Use default configuration values. Override with Snakemake's --configfile/--config options.
-# configfile: "defaults/config.yaml"
+configfile: "defaults/config.yaml"
 
-with open("defaults/samplelist.tsv", "r", encoding="utf-8") as samplelist:
-    samplenames = [line.strip() for line in list(samplelist)[1:]]
+def get_tbprofiler_flag_paths(wildcards):
+    subsample_output = checkpoints.filter_subsample.get(**wildcards).output.metadata_subsample
+    samples = []
+    with open(subsample_output, "r") as f:
+        next(f)  # skip header
+        for line in f:
+            samples.append(line.strip().split("\t")[0])
+    return expand("data/tbprofiler/flags/{sample}_flag.txt", sample=samples)
 
-# All samples (paired end and single end) should have a *_1.fastq.gz file
-# Paired end samples should also have a *_2.fastq.gz file
+def get_snippy_flag_paths(wildcards):
+    subsample_output = checkpoints.filter_subsample.get(**wildcards).output.metadata_subsample
+    samples = []
+    with open(subsample_output, "r") as f:
+        next(f)  # skip header
+        for line in f:
+            samples.append(line.strip().split("\t")[0])
+    return expand("data/snippy/flags/{sample}_flag.txt", sample=samples)
+
+def get_alignment_samples(wildcards):
+    filter_output = checkpoints.filter_qc.get(**wildcards).output.metadata_filtered
+    samples = []
+    with open(filter_output, "r") as f:
+        next(f)  # skip header
+        for line in f:
+            samples.append(line.strip().split("\t")[0])
+    return expand("data/snippy/{sample}", sample=samples)
+
 rule all:
     input:
-        expand("data/fastq/{sample}_1.fastq.gz", sample=samplenames),
-        expand("data/tbprofiler/results/{sample}.results.txt", sample=samplenames),
-        metadata="results/metadata.tsv",
         clean_alignment="results/clean.full.aln",
-        vcf="results/all.vcf.gz"
+        metadata="results/metadata.tsv",
 
-rule fetch_fastq:
+
+rule download:
+    """Downloading metadata from data.nextstrain.org"""
     output:
-        "data/fastq/{sample}_1.fastq.gz",
+        metadata_raw = "data/metadata_raw.tsv"
     params:
-        outdir="data/fastq"
-    benchmark:
-        "benchmarks/fetch_fastq_{sample}.txt"
-    conda:
-        "envs/sra-tools.yaml"
+        metadata_url = "https://data.nextstrain.org/files/workflows/tb/tb_metadata_illumina_20250211.tsv"
     shell:
         """
-        fastq-dump --split-files \
-        --gzip {wildcards.sample} \
-        --outdir {params.outdir}
+        curl -fsSL {params.metadata_url:q} --output {output.metadata_raw}
         """
 
-# This analysis uses the default reference database provided by tb-profiler.
-# The 'tb-profiler update_tbdb' command restores the original tb-profiler
-# database and is only needed if you have previously run tb-profiler using
-# a custom reference database.
-# The syntax for tb-profiler commands is different for samples that 
-# have paired end (PE) vs. single end (SE) reads.
-rule tbprofiler:
+def format_field_map(field_map: dict[str, str]) -> str:
+    """
+    Format dict to `"key1"="value1" "key2"="value2"...` for use in shell commands.
+    """
+    return " ".join([f'"{key}"="{value}"' for key, value in field_map.items()])
+
+rule curate:
     input:
-        read1="data/fastq/{sample}_1.fastq.gz"
+        metadata_raw = "data/metadata_raw.tsv",
+        annotations=config["curate"]["annotations"],
     output:
-        "data/tbprofiler/results/{sample}.results.txt"
-    params:
-        outdir="data/tbprofiler"
+        metadata_curate = "data/metadata_curate.tsv"
     log:
-        "logs/tbprofiler_{sample}.txt",
+        "logs/curate.txt"
     benchmark:
-        "benchmarks/tbprofiler_{sample}.txt"
+        "benchmarks/curate.txt"
+    conda:
+        "envs/nextstrain.yaml"
+    params:
+        field_map=format_field_map(config["curate"]["field_map"]),
+        strain_regex=config["curate"]["strain_regex"],
+        strain_backup_fields=config["curate"]["strain_backup_fields"],
+        date_fields=config["curate"]["date_fields"],
+        expected_date_formats=config["curate"]["expected_date_formats"],
+        articles=config["curate"]["titlecase"]["articles"],
+        abbreviations=config["curate"]["titlecase"]["abbreviations"],
+        titlecase_fields=config["curate"]["titlecase"]["fields"],
+        annotations_id=config["curate"]["annotations_id"],
+        id_field=config["curate"]["output_id_field"],
+    shell:
+        """
+        augur curate passthru \
+            --metadata {input.metadata_raw} \
+            | augur curate rename \
+                --field-map {params.field_map} \
+            | augur curate normalize-strings \
+            | augur curate transform-strain-name \
+                --strain-regex {params.strain_regex} \
+                --backup-fields {params.strain_backup_fields} \
+            | augur curate format-dates \
+                --date-fields {params.date_fields} \
+                --expected-date-formats {params.expected_date_formats} \
+                --failure-reporting silent \
+            | augur curate titlecase \
+                --titlecase-fields {params.titlecase_fields} \
+                --articles {params.articles} \
+                --abbreviations {params.abbreviations} \
+            | augur curate apply-record-annotations \
+                --annotations {input.annotations} \
+                --id-field {params.annotations_id} \
+                --output-metadata {output.metadata_curate} 2>> {log}
+        """
+
+checkpoint filter_subsample:
+    input:
+        metadata_curate = "data/metadata_curate.tsv"
+    output:
+        metadata_subsample = "data/metadata_subsample.tsv"
+    log:
+        "logs/filter_subsample.txt",
+    benchmark:
+        "benchmarks/filter_subsample.txt"
+    conda:
+        "envs/nextstrain.yaml"
+    shell:
+        """
+        augur filter \
+            --metadata {input.metadata_curate} \
+            --metadata-id-columns accession \
+            --query "(mbases > 180 & (country != 'Uncalculated'))" \
+	        --group-by country year \
+	        --sequences-per-group 1 \
+	        --min-date 2024 \
+	        --output-metadata {output.metadata_subsample}
+        """
+
+rule run_tbprofiler:
+    output:
+        "data/tbprofiler/results/{sample}.results.json",
+        touch("data/tbprofiler/flags/{sample}_flag.txt")
+    params:
+        outdir="data/fastq",
+        tb_outdir="data/tbprofiler",
+        threads=4,
+        s3_bucket=config["s3_bucket"],
+        output_path="data/tbprofiler/results/{sample}.results.json"
     conda:
         "envs/tb-profiler.yaml"
     shell:
-        """
-        tb-profiler update_tbdb
-        tb-profiler profile \
-        $(if [ -f data/fastq/{wildcards.sample}_2.fastq.gz ]; then \
-            echo "-1 {input.read1} \
-            -2 data/fastq/{wildcards.sample}_2.fastq.gz"; \
-        else \
-            echo "-1 {input.read1}"; \
-        fi) \
-        -p {wildcards.sample} --txt --dir {params.outdir}
-        """
+        r'''
+        set -x  # <--- DEBUGGING
+        
+        s3_path="files/workflows/tb/{params.output_path}"
+
+        if ! command -v aws &> /dev/null; then
+            echo "Error: AWS CLI is not available." >&2
+            exit 1
+        fi
+
+        if ! aws s3 ls "s3://{params.s3_bucket}" > /dev/null 2>&1; then
+            echo "Error: Unable to access s3://{params.s3_bucket}." >&2
+            exit 1
+        fi
+
+        if aws s3api head-object --bucket {params.s3_bucket} --key "$s3_path" > /dev/null 2>&1; then
+            echo "Found tb-profiler results on S3. Downloading to {params.output_path} …" >&2
+            mkdir -p $(dirname {params.output_path})
+            aws s3 cp "s3://{params.s3_bucket}/$s3_path" {params.output_path}
+        else
+            fastq1={params.outdir}/{wildcards.sample}_1.fastq.gz
+            fastq2={params.outdir}/{wildcards.sample}_2.fastq.gz
+
+            if [[ ! -f "$fastq1" ]]; then
+                echo "Downloading fastq files…" >&2
+                parallel-fastq-dump --split-files --gzip \
+                    --sra-id {wildcards.sample} --threads {params.threads} \
+                    --outdir {params.outdir}
+                exit 1
+            fi
+
+            mkdir -p {params.tb_outdir}
+            if [[ -f "$fastq2" ]]; then
+                tb-profiler profile -1 "$fastq1" -2 "$fastq2" -p {wildcards.sample} --txt --dir {params.tb_outdir}
+            else
+                tb-profiler profile -1 "$fastq1" -p {wildcards.sample} --txt --dir {params.tb_outdir}
+            fi
+
+            echo "Uploading results to S3…" >&2
+            aws s3 cp {params.output_path} "s3://{params.s3_bucket}/$s3_path"
+            exit 1
+        fi
+        '''
 
 rule tbprofiler_collate:
     input:
-       expand("data/tbprofiler/results/{sample}.results.txt", sample=samplenames)
+        get_tbprofiler_flag_paths
     output:
         "data/tbprofiler/results/tbprofiler_all.txt"
     params:
         prefix="data/tbprofiler/results/tbprofiler_all",
-        outdir="data/tbprofiler/results"
+        dir="data/tbprofiler/results"
     benchmark:
         "benchmarks/tbprofiler_collate.txt"
     conda:
@@ -87,56 +200,130 @@ rule tbprofiler_collate:
         """
         tb-profiler collate \
         --prefix {params.prefix} \
-        --dir {params.outdir}
+        --dir {params.dir}
         """
 
-rule merge_tbprofiler_metadata:
+# tbprofiler output is included as input to run_snippy to ensure that 
+# snippy doesn't start running until after run_tbprofiler has 
+# completed downloading of fastq files.
+rule run_snippy:
     input:
-        metadata_curate="defaults/metadata.tsv",
-        tbprofiler_output="data/tbprofiler/results/tbprofiler_all.txt"
+        get_tbprofiler_flag_paths,
     output:
-        metadata="results/metadata.tsv",
+        directory("data/snippy/{sample}"), 
+        touch("data/snippy/flags/{sample}_flag.txt")
+    params:
+        outdir="data/fastq",
+        snippy_outdir="data/snippy",
+        reference="defaults/GCF_000195955.2_ASM19595v2_genomic.gbff",
+        threads=4,
+        s3_bucket=config["s3_bucket"],
+        output_path="data/snippy/{sample}"
+    conda:
+        "envs/snippy.yaml"
+    shell:
+        r'''
+        s3_path="files/workflows/tb/{params.output_path}"
+
+        if ! command -v aws &> /dev/null; then
+            echo "Error: AWS CLI is not available." >&2
+            exit 1
+        fi
+
+        if ! aws s3 ls "s3://{params.s3_bucket}" > /dev/null 2>&1; then
+            echo "Error: Unable to access s3://{params.s3_bucket}." >&2
+            exit 1
+        fi
+
+        if [ "$(aws s3api list-objects-v2 --bucket {params.s3_bucket} --prefix "$s3_path" --query 'Contents[]')" != "null" ]; then
+            echo "Found snippy results on S3. Downloading to {params.output_path} …" >&2
+            mkdir -p $(dirname {params.output_path})
+            aws s3 cp --recursive "s3://{params.s3_bucket}/$s3_path" {params.output_path}
+        else
+            fastq1={params.outdir}/{wildcards.sample}_1.fastq.gz
+            fastq2={params.outdir}/{wildcards.sample}_2.fastq.gz
+
+            if [[ ! -f "$fastq1" ]]; then
+                echo "Downloading fastq files…" >&2
+                parallel-fastq-dump --split-files --gzip \
+                    --sra-id {wildcards.sample} --threads {params.threads} \
+                    --outdir {params.outdir}
+                exit 1
+            fi
+
+            mkdir -p {params.output_path}
+            if [[ -f "$fastq2" ]]; then
+                snippy --outdir {params.output_path} --R1 "$fastq1" --R2 "$fastq2" --ref {params.reference} --force
+            else
+                snippy --outdir {params.output_path} --se "$fastq1" --ref {params.reference} --force
+                exit 1
+            fi
+
+            echo "Uploading results to S3…" >&2
+            aws s3 cp --recursive {params.output_path} "s3://{params.s3_bucket}/$s3_path"
+        fi
+        '''
+
+# Calculate & collate quality control statistics from snippy alignment
+# so that we can remove low quality samples that could cause 
+# rule combine_align to fail by causing the core genome to have no SNPs
+rule snippy_qc:
+    input:
+        get_snippy_flag_paths
+    output:
+        snippy_summary="data/snippy/snippy_summary_stats.tsv"
+    log:
+        "logs/snippy_qc.txt"
     benchmark:
-        "benchmarks/curate_metadata.txt"
+        "benchmarks/snippy_qc.txt"
     conda:
         "envs/nextstrain.yaml"
     shell:
         """
-        augur merge \
-        --metadata bvbrc={input.metadata_curate} \
-        tbprofiler={input.tbprofiler_output} \
-        --metadata-id-columns 'accession_sra' 'sample' \
-        --output-metadata {output.metadata}
+        python scripts/summarize_snippy.py --base_dir data/snippy
         """
 
-# Snippy requires the reference genome to be a gbff file.
-# The syntax for snippy commands is different for samples that 
-# have paired end (PE) vs. single end (SE) reads.
-rule snippy:
+# This is an inner join. Note that augur merge doesn't do inner joins.
+# Note that tbprofiler_all.txt has Windows line endings, and tsv-utils
+# can't handle those.
+rule merge_metadata:
     input:
-        read1="data/fastq/{sample}_1.fastq.gz"
+        metadata_subsample = "data/metadata_subsample.tsv",
+        tbprofiler_output="data/tbprofiler/results/tbprofiler_all.txt",
+        snippy_summary="data/snippy/snippy_summary_stats.tsv"
     output:
-        sample_outdir=directory("data/snippy/{sample}"),
-        vcf="data/snippy/{sample}/snps.vcf.gz",
-        consensus="data/snippy/{sample}/snps.consensus.fa",
-        bam="data/snippy/{sample}/snps.bam"
-    params:
-        ref="defaults/GCF_000195955.2_ASM19595v2_genomic.gbff"
+        metadata_stats="data/metadata_stats.tsv",
     benchmark:
-        "benchmarks/snippy_{sample}.txt"
+        "benchmarks/merge_metadata.txt"
     conda:
-        "envs/snippy.yaml"
+        "envs/csvtk.yaml"
     shell:
         """
-        snippy --outdir {output.sample_outdir}  \
-        $(if [ -f data/fastq/{wildcards.sample}_2.fastq.gz ]; then \
-            echo "--R1 {input.read1} \
-            --R2 data/fastq/{wildcards.sample}_2.fastq.gz"; \
-        else \
-            echo "--se {input.read1}"; \
-        fi) \
-        --ref {params.ref} \
-        --force
+        csvtk join -t -f 1 {input.metadata_subsample} \
+        {input.snippy_summary} \
+        {input.tbprofiler_output} \
+        > {output.metadata_stats}
+        """
+
+# Filter out poor-quality samples and samples that are M. canetti.
+checkpoint filter_qc:
+    input:
+        metadata_stats="data/metadata_stats.tsv",
+    output:
+        metadata_filtered="data/metadata_filtered.tsv",
+    log:
+        "logs/filter_qc.txt"
+    benchmark:
+        "benchmarks/filter_qc.txt"
+    conda:
+        "envs/tsv-utils.yaml"
+    shell:
+        """
+        tsv-filter --header --gt  pct_reads_mapped:80 data/metadata_stats.tsv \
+        | tsv-filter --header --gt  target_median_depth:30 \
+        | tsv-filter --header --gt  ALIGNED:3529226 \
+        | tsv-filter --header --str-eq main_lineage:M.canetti  --invert \
+        > {output.metadata_filtered}
         """
 
 # Note that we had to manually change the chromosome name in the reference 
@@ -144,9 +331,11 @@ rule snippy:
 # name in the gbff file that snippy used for alignment.
 rule combine_align:
     input:
-        samples=expand("data/snippy/{sample}", sample=samplenames),
+        sample=get_alignment_samples,
+        mask_file="defaults/AF14_RLC_Regions.Plus.LowPmapK50E4.H37Rv.bed"
     output:
         alignment="data/snippy/core.full.aln",
+        snippy_summary="data/snippy/core.txt"
     params:
         ref="defaults/GCF_000195955.2_ASM19595v2_genomic.fna",
         prefix="data/snippy/core"
@@ -157,7 +346,8 @@ rule combine_align:
     shell:
         """
         snippy-core --ref {params.ref} \
-        {input.samples} \
+        {input.sample} \
+        --mask {input.mask_file} \
         --prefix {params.prefix}
         """
 
@@ -177,18 +367,23 @@ rule clean_align:
         > {output.clean_alignment}
         """
 
-rule combine_vcfs:
+# Replace the snippy qc metrics with metrics that take into account masking.
+# data/snippy/core.txt is an output from rule combine_align
+rule replace_snippyqc:
     input:
-        samples=expand("data/snippy/{sample}/snps.vcf.gz", sample=samplenames),
+        metadata_filtered = "data/metadata_filtered.tsv",
+        snippy_summary="data/snippy/core.txt"
     output:
-        vcf="results/all.vcf.gz"
+        metadata="results/metadata.tsv",
     benchmark:
-        "benchmarks/snippy_combine_align.txt"
+        "benchmarks/merge_metadata.txt"
     conda:
-        "envs/bcftools.yaml"
+        "envs/nextstrain.yaml"
     shell:
         """
-        bcftools merge {input.samples} \
-        -Oz -o {output.vcf} \
-        --missing-to-ref
+        augur merge \
+        --metadata filtered={input.metadata_filtered} \
+        snippy={input.snippy_summary} \
+        --metadata-id-columns 'accession' 'ID' \
+        --output-metadata {output.metadata}
         """
