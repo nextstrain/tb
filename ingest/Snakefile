@@ -228,7 +228,9 @@ rule snippy_qc:
         --base_dir data/snippy 2> {log}
         """
 
-# This is an inner join. Note that augur merge doesn't do inner joins.
+# This is an inner join so that samples that failed tbprofiler or snippy 
+# are excluded from the metadata_stats.tsv output.
+# Note that augur merge doesn't do inner joins.
 # Note that tbprofiler_all.txt has Windows line endings, and tsv-utils
 # can't handle those.
 rule merge_metadata:
@@ -341,6 +343,7 @@ rule fasta_to_vcf:
 
 # Replace the snippy qc metrics with metrics that take into account masking.
 # data/snippy/core.txt is an output from rule combine_align
+# FIX: Need to remove the reference sequence from the output file
 rule replace_snippyqc:
     input:
         metadata_filtered = "data/metadata_filtered.tsv",
