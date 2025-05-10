@@ -101,7 +101,7 @@ rule curate:
             | augur curate apply-record-annotations \
                 --annotations {input.annotations} \
                 --id-field {params.annotations_id} \
-                --output-metadata {output.metadata_curate} 2>> {log}
+                --output-metadata {output.metadata_curate} 2> {log}
         """
 
 checkpoint filter_subsample:
@@ -124,7 +124,7 @@ checkpoint filter_subsample:
 	        --group-by country year \
 	        --sequences-per-group 1 \
 	        --min-date 2024 \
-	        --output-metadata {output.metadata_subsample}
+	        --output-metadata {output.metadata_subsample} 2> {log}
         """
 
 rule run_tbprofiler:
@@ -137,6 +137,10 @@ rule run_tbprofiler:
         threads=4,
         s3_bucket=config["s3_bucket"],
         output_path="data/tbprofiler/results/{sample}.results.json"
+    log:
+        "logs/tbprofiler_{sample}.txt",
+    benchmark:
+        "benchmarks/tbprofiler_{sample}.txt",
     conda:
         "envs/tb-profiler.yaml"
     shell:
@@ -159,6 +163,8 @@ rule tbprofiler_collate:
     params:
         prefix="data/tbprofiler/results/tbprofiler_all",
         dir="data/tbprofiler/results"
+    log:
+        "logs/tbprofiler_collate.txt"
     benchmark:
         "benchmarks/tbprofiler_collate.txt"
     conda:
@@ -167,7 +173,7 @@ rule tbprofiler_collate:
         """
         tb-profiler collate \
         --prefix {params.prefix} \
-        --dir {params.dir}
+        --dir {params.dir} 2> {log}
         """
 
 # tbprofiler output is included as input to run_snippy to ensure that 
@@ -186,6 +192,10 @@ rule run_snippy:
         threads=4,
         s3_bucket=config["s3_bucket"],
         output_path="data/snippy/{sample}"
+    log:
+        "logs/snippy_{sample}.txt",
+    benchmark:
+        "benchmarks/snippy_{sample}.txt",
     conda:
         "envs/snippy.yaml"
     shell:
@@ -217,7 +227,8 @@ rule snippy_qc:
         "envs/nextstrain.yaml"
     shell:
         """
-        python scripts/summarize_snippy.py --base_dir data/snippy
+        python scripts/summarize_snippy.py \
+        --base_dir data/snippy 2> {log}
         """
 
 # This is an inner join. Note that augur merge doesn't do inner joins.
@@ -230,6 +241,8 @@ rule merge_metadata:
         snippy_summary="data/snippy/snippy_summary_stats.tsv"
     output:
         metadata_stats="data/metadata_stats.tsv",
+    log:
+        "logs/merge_metadata.txt",
     benchmark:
         "benchmarks/merge_metadata.txt"
     conda:
@@ -239,7 +252,7 @@ rule merge_metadata:
         csvtk join -t -f 1 {input.metadata_subsample} \
         {input.snippy_summary} \
         {input.tbprofiler_output} \
-        > {output.metadata_stats}
+        > {output.metadata_stats} 2> {log}
         """
 
 # Filter out poor-quality samples and samples that are M. canetti.
@@ -260,7 +273,7 @@ checkpoint filter_qc:
         | tsv-filter --header --gt  target_median_depth:30 \
         | tsv-filter --header --gt  ALIGNED:3529226 \
         | tsv-filter --header --str-eq main_lineage:M.canetti  --invert \
-        > {output.metadata_filtered}
+        > {output.metadata_filtered} 2> {log}
         """
 
 # Note that we had to manually change the chromosome name in the reference 
@@ -276,6 +289,8 @@ rule combine_align:
     params:
         ref="defaults/GCF_000195955.2_ASM19595v2_genomic.fna",
         prefix="data/snippy/core"
+    log:
+        "logs/snippy_combine_align.txt"
     benchmark:
         "benchmarks/snippy_combine_align.txt"
     conda:
@@ -285,7 +300,7 @@ rule combine_align:
         snippy-core --ref {params.ref} \
         {input.sample} \
         --mask {input.mask_file} \
-        --prefix {params.prefix}
+        --prefix {params.prefix} 2> {log}
         """
 
 rule clean_align:
@@ -293,6 +308,8 @@ rule clean_align:
         alignment="data/snippy/core.full.aln"
     output:
         clean_alignment="results/clean.full.aln",
+    log:
+        "logs/snippy_clean_align.txt"
     benchmark:
         "benchmarks/snippy_clean_align.txt"
     conda:
@@ -301,7 +318,8 @@ rule clean_align:
         """
         snippy-clean_full_aln \
         {input.alignment} \
-        > {output.clean_alignment}
+        > {output.clean_alignment} 2> {log}
+        """
         """
 
 # Replace the snippy qc metrics with metrics that take into account masking.
@@ -312,8 +330,10 @@ rule replace_snippyqc:
         snippy_summary="data/snippy/core.txt"
     output:
         metadata="results/metadata.tsv",
+    log:
+        "logs/replace_snippyqc.txt"
     benchmark:
-        "benchmarks/merge_metadata.txt"
+        "benchmarks/replace_snippyqc.txt"
     conda:
         "envs/nextstrain.yaml"
     shell:
@@ -322,5 +342,5 @@ rule replace_snippyqc:
         --metadata filtered={input.metadata_filtered} \
         snippy={input.snippy_summary} \
         --metadata-id-columns 'accession' 'ID' \
-        --output-metadata {output.metadata}
+        --output-metadata {output.metadata} 2> {log}
         """
