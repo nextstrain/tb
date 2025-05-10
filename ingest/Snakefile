@@ -32,7 +32,7 @@ def get_alignment_samples(wildcards):
         next(f)  # skip header
         for line in f:
             samples.append(line.strip().split("\t")[0])
-    return expand("data/snippy/{sample}", sample=samples)
+    return expand("data/snippy/flags/{sample}_flag.txt", sample=samples)
 
 rule all:
     input:
@@ -129,7 +129,6 @@ checkpoint filter_subsample:
 
 rule run_tbprofiler:
     output:
-        "data/tbprofiler/results/{sample}.results.json",
         touch("data/tbprofiler/flags/{sample}_flag.txt")
     params:
         outdir="data/fastq",
@@ -183,7 +182,6 @@ rule run_snippy:
     input:
         get_tbprofiler_flag_paths,
     output:
-        directory("data/snippy/{sample}"), 
         touch("data/snippy/flags/{sample}_flag.txt")
     params:
         outdir="data/fastq",
@@ -276,6 +274,7 @@ checkpoint filter_qc:
         > {output.metadata_filtered} 2> {log}
         """
 
+# Input sample names are taken from metadata_filtered.tsv
 # Note that we had to manually change the chromosome name in the reference 
 # genome from "NC_000962.3" to "NC_000962" because that is the chromosome 
 # name in the gbff file that snippy used for alignment.
@@ -298,7 +297,7 @@ rule combine_align:
     shell:
         """
         snippy-core --ref {params.ref} \
-        {input.sample} \
+        $(for f in {input.sample}; do echo data/snippy/$(basename $f _flag.txt); done) \
         --mask {input.mask_file} \
         --prefix {params.prefix} 2> {log}
         """
