@@ -36,9 +36,8 @@ def get_alignment_samples(wildcards):
 
 rule all:
     input:
-        clean_alignment="results/clean.full.aln",
-        metadata="results/metadata.tsv",
-
+        "results/all_informative.vcf",
+        "results/metadata.tsv"
 
 rule download:
     """Downloading metadata from data.nextstrain.org"""
@@ -319,6 +318,25 @@ rule clean_align:
         {input.alignment} \
         > {output.clean_alignment} 2> {log}
         """
+
+rule fasta_to_vcf:
+    input:
+        clean_alignment="results/clean.full.aln",
+        ref="defaults/GCF_000195955.2_ASM19595v2_genomic.fna",
+    output:
+        informative_vcf="results/all_informative.vcf",
+    log:
+        "logs/fasta_to_vcf.txt"
+    benchmark:
+        "benchmarks/fasta_to_vcf.txt"
+    conda:
+        "envs/nextstrain.yaml"
+    shell:
+        """
+        python scripts/fasta_to_vcf.py \
+        {input.ref} \
+        {input.clean_alignment} \
+        {output.informative_vcf} 2> {log}
         """
 
 # Replace the snippy qc metrics with metrics that take into account masking.
