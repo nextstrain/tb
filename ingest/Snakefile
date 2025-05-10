@@ -141,47 +141,14 @@ rule run_tbprofiler:
         "envs/tb-profiler.yaml"
     shell:
         r'''
-        set -x  # <--- DEBUGGING
-        
-        s3_path="files/workflows/tb/{params.output_path}"
-
-        if ! command -v aws &> /dev/null; then
-            echo "Error: AWS CLI is not available." >&2
-            exit 1
-        fi
-
-        if ! aws s3 ls "s3://{params.s3_bucket}" > /dev/null 2>&1; then
-            echo "Error: Unable to access s3://{params.s3_bucket}." >&2
-            exit 1
-        fi
-
-        if aws s3api head-object --bucket {params.s3_bucket} --key "$s3_path" > /dev/null 2>&1; then
-            echo "Found tb-profiler results on S3. Downloading to {params.output_path} …" >&2
-            mkdir -p $(dirname {params.output_path})
-            aws s3 cp "s3://{params.s3_bucket}/$s3_path" {params.output_path}
-        else
-            fastq1={params.outdir}/{wildcards.sample}_1.fastq.gz
-            fastq2={params.outdir}/{wildcards.sample}_2.fastq.gz
-
-            if [[ ! -f "$fastq1" ]]; then
-                echo "Downloading fastq files…" >&2
-                parallel-fastq-dump --split-files --gzip \
-                    --sra-id {wildcards.sample} --threads {params.threads} \
-                    --outdir {params.outdir}
-                exit 1
-            fi
-
-            mkdir -p {params.tb_outdir}
-            if [[ -f "$fastq2" ]]; then
-                tb-profiler profile -1 "$fastq1" -2 "$fastq2" -p {wildcards.sample} --txt --dir {params.tb_outdir}
-            else
-                tb-profiler profile -1 "$fastq1" -p {wildcards.sample} --txt --dir {params.tb_outdir}
-            fi
-
-            echo "Uploading results to S3…" >&2
-            aws s3 cp {params.output_path} "s3://{params.s3_bucket}/$s3_path"
-            exit 1
-        fi
+        set -o pipefail; \
+        scripts/run_tbprofiler.sh {wildcards.sample} \
+        {params.s3_bucket} \
+        {params.output_path} \
+        {params.outdir} \
+        {params.tb_outdir} \
+        {params.threads} 2>&1 | tee {log:q} \
+        || echo "tbprofiler failed at sample {wildcards.sample}" | tee -a {log:q}
         '''
 
 rule tbprofiler_collate:
@@ -223,45 +190,15 @@ rule run_snippy:
         "envs/snippy.yaml"
     shell:
         r'''
-        s3_path="files/workflows/tb/{params.output_path}"
-
-        if ! command -v aws &> /dev/null; then
-            echo "Error: AWS CLI is not available." >&2
-            exit 1
-        fi
-
-        if ! aws s3 ls "s3://{params.s3_bucket}" > /dev/null 2>&1; then
-            echo "Error: Unable to access s3://{params.s3_bucket}." >&2
-            exit 1
-        fi
-
-        if [ "$(aws s3api list-objects-v2 --bucket {params.s3_bucket} --prefix "$s3_path" --query 'Contents[]')" != "null" ]; then
-            echo "Found snippy results on S3. Downloading to {params.output_path} …" >&2
-            mkdir -p $(dirname {params.output_path})
-            aws s3 cp --recursive "s3://{params.s3_bucket}/$s3_path" {params.output_path}
-        else
-            fastq1={params.outdir}/{wildcards.sample}_1.fastq.gz
-            fastq2={params.outdir}/{wildcards.sample}_2.fastq.gz
-
-            if [[ ! -f "$fastq1" ]]; then
-                echo "Downloading fastq files…" >&2
-                parallel-fastq-dump --split-files --gzip \
-                    --sra-id {wildcards.sample} --threads {params.threads} \
-                    --outdir {params.outdir}
-                exit 1
-            fi
-
-            mkdir -p {params.output_path}
-            if [[ -f "$fastq2" ]]; then
-                snippy --outdir {params.output_path} --R1 "$fastq1" --R2 "$fastq2" --ref {params.reference} --force
-            else
-                snippy --outdir {params.output_path} --se "$fastq1" --ref {params.reference} --force
-                exit 1
-            fi
-
-            echo "Uploading results to S3…" >&2
-            aws s3 cp --recursive {params.output_path} "s3://{params.s3_bucket}/$s3_path"
-        fi
+        set -o pipefail; \
+        scripts/run_snippy.sh {wildcards.sample} \
+        {params.s3_bucket} \
+        {params.output_path} \
+        {params.outdir} \
+        {params.snippy_outdir} \
+        {params.reference} \
+        {params.threads} 2>&1 | tee {log:q} \
+        || echo "snippy failed at sample {wildcards.sample}" | tee -a {log:q}
         '''
 
 # Calculate & collate quality control statistics from snippy alignment
