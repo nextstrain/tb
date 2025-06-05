@@ -25,7 +25,8 @@ fi
 if [ "$(aws s3api list-objects-v2 --bucket "${s3_bucket}" --prefix "$s3_path" --query 'Contents[]')" != "null" ]; then
     echo "Found snippy results on S3. Downloading to ${output_path} …" >&2
     mkdir -p "$(dirname "${output_path}")"
-    aws s3 cp --recursive "s3://${s3_bucket}/$s3_path" "${output_path}"
+    aws s3 cp "s3://${s3_bucket}/${s3_path}/snps.aligned.fa" "${output_path}/snps.aligned.fa"
+    aws s3 cp "s3://${s3_bucket}/${s3_path}/snps.vcf" "${output_path}/snps.vcf"
 else
     fastq1="${outdir}/${sample}_1.fastq.gz"
     fastq2="${outdir}/${sample}_2.fastq.gz"
@@ -45,6 +46,6 @@ else
         snippy --outdir "${output_path}" --se "$fastq1" --ref "${reference}" --force
     fi
 
-    echo "Uploading results to S3…" >&2
-    aws s3 cp --recursive "${output_path}" "s3://${s3_bucket}/$s3_path"
+    aws s3 cp "${output_path}/snps.aligned.fa" "s3://${s3_bucket}/${s3_path}/snps.aligned.fa"
+    aws s3 cp "${output_path}/snps.vcf" "s3://${s3_bucket}/${s3_path}/snps.vcf"
 fi
