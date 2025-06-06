@@ -9,15 +9,10 @@ seq_file = "data/all_informative.vcf.gz"
 ref_file = "defaults/GCF_000195955.2_ASM19595v2_genomic.fna"
 meta_file = "data/metadata.tsv"
 exclude_file = "defaults/dropped_strains.txt"
-mask_file = "defaults/Locus_to_exclude_Mtb.bed"
-sites_file = "defaults/drm_sites.txt"
+mask_file = "defaults/AF14_RLC_Regions.Plus.LowPmapK50E4.H37Rv.bed"
 generef_file = "defaults/GCF_000195955.2_ASM19595v2_genomic.gff"
 auspice_config_file = "defaults/auspice_config.json"
 strain_id_field = "accession"
-# Note that two files were copied from the previous tb repo and
-# may need to be modified in the future:
-# defaults/Locus_to_exclude_Mtb.bed
-# config/drm_sites.txt
 
 rule filter:
     input:
@@ -56,7 +51,6 @@ rule tree:
     input:
         aln = "results/masked.vcf.gz",
         ref = ref_file,
-        sites = sites_file
     output:
         "results/tree_raw.nwk"
     params:
@@ -66,7 +60,6 @@ rule tree:
         augur tree --alignment {input.aln} \
             --vcf-reference {input.ref} \
             --method {params.method} \
-            --exclude-sites {input.sites} \
             --output {output}
         """
 
