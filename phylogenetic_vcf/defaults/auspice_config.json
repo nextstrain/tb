@@ -16,8 +16,23 @@
    "type": "continuous"
   },
   {
+    "key": "region",
+    "title": "Region",
+    "type": "categorical"
+  },
+  {
     "key": "country",
     "title": "Country",
+    "type": "categorical"
+  },
+  {
+    "key": "main_lineage",
+    "title": "Main Lineage",
+    "type": "categorical"
+  },
+  {
+    "key": "sub_lineage",
+    "title": "Sublineage",
     "type": "categorical"
   },
   {
@@ -38,11 +53,16 @@
   {
     "key": "num_dr_variants",
     "title": "Number drug res variants",
-    "type": "categorical"
+    "type": "continuous"
   },
   {
     "key": "num_other_variants",
     "title": "Number other variants",
+    "type": "continuous"
+  },
+  {
+    "key": "drtype",
+    "title": "Drug resistance type",
     "type": "categorical"
   },
   {
@@ -134,6 +154,11 @@
     "key": "cycloserine",
     "title": "cycloserine",
     "type": "categorical"
+  },
+  {
+    "key": "num_dr_variants",
+    "title": "Number of drug resistance variants",
+    "type": "continuous"
   }
 
  ],
@@ -144,6 +169,8 @@
   "country"
  ],
  "display_defaults": {
-  "distance_measure": "div"
+  "distance_measure": "div",
+  "color_by": "main_lineage",
+  "layout": "unrooted"
 }
 }

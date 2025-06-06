@@ -13,7 +13,7 @@ mask_file = "defaults/Locus_to_exclude_Mtb.bed"
 sites_file = "defaults/drm_sites.txt"
 generef_file = "defaults/GCF_000195955.2_ASM19595v2_genomic.gff"
 auspice_config_file = "defaults/auspice_config.json"
-strain_id_field = "accession_sra"
+strain_id_field = "accession"
 # Note that two files were copied from the previous tb repo and
 # may need to be modified in the future:
 # defaults/Locus_to_exclude_Mtb.bed
@@ -26,6 +26,8 @@ rule filter:
         exclude = exclude_file
     output:
         "results/filtered.vcf.gz"
+    log:
+        "logs/filter.txt"
     params:
        strain_id = strain_id_field
     shell:
@@ -136,16 +138,15 @@ rule translate:
             --vcf-reference-output {output.vcf_ref}
         """
 
-# We are currently excluding the nucleotide and amino acid mutations
-# from the auspice tree in order to reduce file size
 rule export:
     input:
         tree = "results/tree.nwk",
         metadata = meta_file,
         branch_lengths = "results/branch_lengths.json",
-        # nt_muts = "results/nt_muts.json",
-        # aa_muts = "results/aa_muts.json",
+        nt_muts = "results/nt_muts.json",
+        aa_muts = "results/aa_muts.json",
         auspice_config = auspice_config_file,
+        colors = "defaults/colors.tsv"
     output:
         auspice_json = rules.all.input.auspice_json,
     params:
@@ -156,7 +157,8 @@ rule export:
             --tree {input.tree} \
             --metadata {input.metadata} \
             --metadata-id-columns {params.strain_id} \
-            --node-data {input.branch_lengths}  \
+            --node-data {input.branch_lengths} {input.nt_muts} {input.aa_muts} \
+            --colors {input.colors} \
             --auspice-config {input.auspice_config} \
             --output {output.auspice_json} \
         """
