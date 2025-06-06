@@ -5,7 +5,7 @@ rule all:
     input:
         auspice_json = "auspice/tb.json",
 
-seq_file = "data/all.vcf.gz"
+seq_file = "data/all_informative.vcf.gz"
 ref_file = "defaults/GCF_000195955.2_ASM19595v2_genomic.fna"
 meta_file = "data/metadata.tsv"
 exclude_file = "defaults/dropped_strains.txt"
