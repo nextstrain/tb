@@ -326,7 +326,8 @@ rule fasta_to_vcf:
         clean_alignment="results/clean.full.aln",
         ref="defaults/GCF_000195955.2_ASM19595v2_genomic.fna",
     output:
-        informative_vcf="results/all_informative.vcf",
+        informative_vcf="results/all_informative.vcf.gz",
+        uncompressed_vcf=temp("results/all_informative.vcf")
     log:
         "logs/fasta_to_vcf.txt"
     benchmark:
@@ -338,7 +339,8 @@ rule fasta_to_vcf:
         python scripts/fasta_to_vcf.py \
         {input.ref} \
         {input.clean_alignment} \
-        {output.informative_vcf} 2> {log}
+        {output.uncompressed_vcf} 2> {log}
+        gzip -c {output.uncompressed_vcf} > {output.informative_vcf}
         """
 
 # Replace the snippy qc metrics with metrics that take into account masking.
