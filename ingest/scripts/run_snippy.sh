@@ -10,6 +10,16 @@ snippy_outdir="$5"
 reference="$6"
 threads="$7"
 
+# If TMPDIR doesn't exist, use tb_outdir. This enables this script
+# to run on the Fred Hutch cluster, which doesn't allow use of Scratch
+# storage with fasterq-dump, and therefore requires files to be
+# saved on TMPDIR before being moved to tb_outdir
+
+if [[ -z "${TMPDIR:-}" || ! -d "$TMPDIR" ]]; then
+    echo "TMPDIR not set or doesn't exist. Using tb_outdir as TMPDIR." >&2
+    TMPDIR="$tb_outdir"
+fi
+
 s3_path="files/workflows/tb/${output_path}"
 
 if ! command -v aws &> /dev/null; then
@@ -33,10 +43,21 @@ else
 
     if [[ ! -f "$fastq1" ]]; then
         echo "Downloading fastq files…" >&2
-        mkdir -p "${outdir}"
-        parallel-fastq-dump --split-files --gzip \
-            --sra-id "${sample}" --threads "${threads}" \
-            --outdir "${outdir}"
+        mkdir -p "${outdir}"  # <-- ADDED SAFEGUARD
+        fasterq-dump "${sample}" -e "${threads}" --temp "${TMPDIR}" --outdir "${TMPDIR}"
+        
+        echo "Compressing FASTQ files…" >&2
+        gzip "${TMPDIR}/${sample}_1.fastq"
+        if [[ -f "${TMPDIR}/${sample}_2.fastq" ]]; then
+            gzip "${TMPDIR}/${sample}_2.fastq"
+        fi
+    
+        echo "Moving compressed FASTQ files to ${outdir}…" >&2
+        mv "${TMPDIR}/${sample}_1.fastq.gz" "${fastq1}"
+        if [[ -f "${TMPDIR}/${sample}_2.fastq.gz" ]]; then
+            mv "${TMPDIR}/${sample}_2.fastq.gz" "${fastq2}"
+        fi
+        
     fi
 
     mkdir -p "${output_path}"
