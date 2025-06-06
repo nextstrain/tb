@@ -1,0 +1,1 @@
+Reference # Snippy automatically outputs the reference sequence in the multisequence alignment and calls it "Reference"
