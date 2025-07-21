@@ -297,6 +297,7 @@ rule combine_align:
         "envs/snippy.yaml"
     shell:
         """
+        PATH=/opt/snippy/bin:$PATH \
         snippy-core --ref {params.ref} \
         $(for f in {input.sample}; do echo data/snippy/$(basename $f _flag.txt); done) \
         --mask {input.mask_file} \
@@ -316,6 +317,7 @@ rule clean_align:
         "envs/snippy.yaml"
     shell:
         """
+        PATH=/opt/snippy/bin:$PATH \
         snippy-clean_full_aln \
         {input.alignment} \
         > {output.clean_alignment} 2> {log}
@@ -360,6 +362,7 @@ rule replace_snippyqc:
         "envs/nextstrain.yaml"
     shell:
         """
+        PATH=/opt/snippy/bin:$PATH \
         augur merge \
         --metadata filtered={input.metadata_filtered} \
         snippy={input.snippy_summary} \

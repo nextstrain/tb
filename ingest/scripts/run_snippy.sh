@@ -2,6 +2,8 @@
 set -euo pipefail
 set -x  # DEBUGGING
 
+PATH=/opt/snippy/bin/:/opt/snippy/binaries/noarch:$PATH
+
 sample="$1"
 s3_bucket="$2"
 output_path="$3"
