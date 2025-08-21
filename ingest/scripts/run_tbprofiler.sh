@@ -4,22 +4,21 @@ set -x  # DEBUGGING
 
 sample="$1"
 s3_bucket="$2"
-output_path="$3"
-outdir="$4"
+tb_output_path="$3"
+fastq_outdir="$4"
 tb_outdir="$5"
 threads="$6"
 
-# If TMPDIR doesn't exist, use tb_outdir. This enables this script
+# If TMPDIR doesn't exist, use fastq_outdir. This enables this script
 # to run on the Fred Hutch cluster, which doesn't allow use of Scratch
 # storage with fasterq-dump, and therefore requires files to be
-# saved on TMPDIR before being moved to tb_outdir
-
+# saved on TMPDIR before being moved to fastq_outdir
 if [[ -z "${TMPDIR:-}" || ! -d "$TMPDIR" ]]; then
-    echo "TMPDIR not set or doesn't exist. Using tb_outdir as TMPDIR." >&2
-    TMPDIR="$tb_outdir"
+    echo "TMPDIR not set or doesn't exist. Using fastq_outdir as TMPDIR." >&2
+    TMPDIR="$fastq_outdir"
 fi
 
-s3_path="files/workflows/tb/${output_path}"
+s3_path="files/workflows/tb/${tb_output_path}"
 
 if ! command -v aws &> /dev/null; then
     echo "Error: AWS CLI is not available." >&2
@@ -32,39 +31,54 @@ if ! aws s3 ls "s3://${s3_bucket}" > /dev/null 2>&1; then
 fi
 
 if aws s3api head-object --bucket "${s3_bucket}" --key "$s3_path" > /dev/null 2>&1; then
-    echo "Found tb-profiler results on S3. Downloading to ${output_path} …" >&2
-    mkdir -p $(dirname "${output_path}")
-    aws s3 cp "s3://${s3_bucket}/$s3_path" "${output_path}"
+    echo "Found tb-profiler results on S3. Downloading to ${tb_output_path} …" >&2
+    mkdir -p "$(dirname "${tb_output_path}")"
+    aws s3 cp "s3://${s3_bucket}/$s3_path" "${tb_output_path}"
 else
-    fastq1="${outdir}/${sample}_1.fastq.gz"
-    fastq2="${outdir}/${sample}_2.fastq.gz"
+    fastq1="${fastq_outdir}/${sample}_1.fastq.gz"
+    fastq2="${fastq_outdir}/${sample}_2.fastq.gz"
 
     if [[ ! -f "$fastq1" ]]; then
         echo "Downloading fastq files…" >&2
-        mkdir -p "${outdir}"  # <-- ADDED SAFEGUARD
+        mkdir -p "${fastq_outdir}"
+
+        # Default split-3 behavior: may produce _1.fastq, _2.fastq, and/or ${sample}.fastq
         fasterq-dump "${sample}" -e "${threads}" --temp "${TMPDIR}" --outdir "${TMPDIR}"
-        
-        echo "Compressing FASTQ files…" >&2
-        gzip "${TMPDIR}/${sample}_1.fastq"
-        if [[ -f "${TMPDIR}/${sample}_2.fastq" ]]; then
-            gzip "${TMPDIR}/${sample}_2.fastq"
+
+        echo "Compressing & moving FASTQ files…" >&2
+
+        # Paired reads (if present)
+        if [[ -f "${TMPDIR}/${sample}_1.fastq" ]]; then
+            gzip -f "${TMPDIR}/${sample}_1.fastq"
+            mv "${TMPDIR}/${sample}_1.fastq.gz" "${fastq1}"
         fi
-    
-        echo "Moving compressed FASTQ files to ${outdir}…" >&2
-        mv "${TMPDIR}/${sample}_1.fastq.gz" "${fastq1}"
-        if [[ -f "${TMPDIR}/${sample}_2.fastq.gz" ]]; then
+        if [[ -f "${TMPDIR}/${sample}_2.fastq" ]]; then
+            gzip -f "${TMPDIR}/${sample}_2.fastq"
             mv "${TMPDIR}/${sample}_2.fastq.gz" "${fastq2}"
         fi
-        
+
+        # Single-end case: only ${sample}.fastq exists
+        if [[ ! -f "$fastq1" && -f "${TMPDIR}/${sample}.fastq" ]]; then
+            gzip -f "${TMPDIR}/${sample}.fastq"
+            mv "${TMPDIR}/${sample}.fastq.gz" "${fastq1}"
+        fi
+
+        # Sanity check
+        if [[ ! -f "${fastq1}" ]]; then
+            echo "Error: No usable FASTQ generated for ${sample}." >&2
+            ls -l "${TMPDIR}" || true
+            exit 1
+        fi
+        # Note: orphan reads (${sample}.fastq) are intentionally ignored if _1/_2 exist.
     fi
 
     mkdir -p "${tb_outdir}"
     if [[ -f "$fastq2" ]]; then
-        tb-profiler profile -1 "$fastq1" -2 "$fastq2" -p "${sample}" --txt --dir "${tb_outdir}"
+        tb-profiler profile -1 "$fastq1" -2 "$fastq2" -p "${sample}" --txt --dir "${tb_outdir}" --threads "${threads}"
     else
-        tb-profiler profile -1 "$fastq1" -p "${sample}" --txt --dir "${tb_outdir}"
+        tb-profiler profile -1 "$fastq1" -p "${sample}" --txt --dir "${tb_outdir}" --threads "${threads}"
     fi
 
     echo "Uploading results to S3…" >&2
-    aws s3 cp "${output_path}" "s3://${s3_bucket}/$s3_path"
+    aws s3 cp "${tb_output_path}" "s3://${s3_bucket}/$s3_path"
 fi
