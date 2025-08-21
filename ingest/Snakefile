@@ -7,6 +7,7 @@ workdir: workflow.current_basedir
 
 configfile: "defaults/config.yaml"
 
+# Ensures that tbprofiler_collate doesn't run until all samples have been processed by tbprofiler
 def get_tbprofiler_flag_paths(wildcards):
     subsample_output = checkpoints.filter_subsample.get(**wildcards).output.metadata_subsample
     samples = []
@@ -16,6 +17,13 @@ def get_tbprofiler_flag_paths(wildcards):
             samples.append(line.strip().split("\t")[0])
     return expand("data/tbprofiler/flags/{sample}_flag.txt", sample=samples)
 
+# Ensures that snippy doesn't start running until tbprofiler has completed, but also 
+# doesn't wait for ALL samples to be run through tbprofiler before starting snippy on 
+# individual files
+def tbprofiler_flag(wildcards):
+    return f"data/tbprofiler/flags/{wildcards.sample}_flag.txt"
+
+# Ensures that snippy_qc doesn't run until all samples have been processed by snippy
 def get_snippy_flag_paths(wildcards):
     subsample_output = checkpoints.filter_subsample.get(**wildcards).output.metadata_subsample
     samples = []
@@ -25,6 +33,7 @@ def get_snippy_flag_paths(wildcards):
             samples.append(line.strip().split("\t")[0])
     return expand("data/snippy/flags/{sample}_flag.txt", sample=samples)
 
+# Ensures that only samples that passed all QC are included in the alignment
 def get_alignment_samples(wildcards):
     filter_output = checkpoints.filter_qc.get(**wildcards).output.metadata_filtered
     samples = []
@@ -36,8 +45,8 @@ def get_alignment_samples(wildcards):
 
 rule all:
     input:
-        "results/all_informative.vcf",
-        "results/metadata.tsv"
+        auspice_json = "auspice/tb.json",
+        tip_frequencies_json="auspice/tb_tip-frequencies.json",
 
 rule download:
     """Downloading metadata from data.nextstrain.org"""
@@ -120,21 +129,20 @@ checkpoint filter_subsample:
             --metadata {input.metadata_curate} \
             --metadata-id-columns accession \
             --query "(mbases > 180 & (country != 'Uncalculated'))" \
-	        --group-by country year \
-	        --sequences-per-group 1 \
-	        --min-date 2024 \
+	        --subsample-max-sequences 10 \
+	        --min-date 2005 \
 	        --output-metadata {output.metadata_subsample} 2> {log}
         """
 
 rule run_tbprofiler:
     output:
-        touch("data/tbprofiler/flags/{sample}_flag.txt")
+        touch("data/tbprofiler/flags/{sample}_flag.txt"),
     params:
-        outdir="data/fastq",
-        tb_outdir="data/tbprofiler",
-        threads=4,
         s3_bucket=config["s3_bucket"],
-        output_path="data/tbprofiler/results/{sample}.results.json"
+        tb_output_path="data/tbprofiler/results/{sample}.results.json",
+        fastq_outdir="data/fastq",
+        tb_outdir="data/tbprofiler",
+    threads: 4
     log:
         "logs/tbprofiler_{sample}.txt",
     benchmark:
@@ -143,14 +151,18 @@ rule run_tbprofiler:
         "envs/tb-profiler.yaml"
     shell:
         r'''
+        eval "$(conda shell.bash hook)"
+        conda activate tb-profiler
         set -o pipefail; \
         scripts/run_tbprofiler.sh {wildcards.sample} \
         {params.s3_bucket} \
-        {params.output_path} \
-        {params.outdir} \
+        {params.tb_output_path} \
+        {params.fastq_outdir} \
         {params.tb_outdir} \
-        {params.threads} 2>&1 | tee {log:q} \
+        {threads} 2>&1 | tee {log:q} \
         || echo "tbprofiler failed at sample {wildcards.sample}" | tee -a {log:q}
+        rm -f data/tbprofiler/bam/{wildcards.sample}.bam*
+        rm -f data/tbprofiler/vcf/{wildcards.sample}.targets.vcf.gz
         '''
 
 rule tbprofiler_collate:
@@ -169,6 +181,8 @@ rule tbprofiler_collate:
         "envs/tb-profiler.yaml"
     shell:
         """
+        eval "$(conda shell.bash hook)"
+        conda activate tb-profiler
         tb-profiler collate \
         --prefix {params.prefix} \
         --dir {params.dir} 2> {log}
@@ -179,16 +193,16 @@ rule tbprofiler_collate:
 # completed downloading of fastq files.
 rule run_snippy:
     input:
-        get_tbprofiler_flag_paths,
+        tbprofiler_flag,
     output:
-        touch("data/snippy/flags/{sample}_flag.txt")
+        touch("data/snippy/flags/{sample}_flag.txt"),
+    priority: 1000
     params:
-        outdir="data/fastq",
-        snippy_outdir="data/snippy",
-        reference="defaults/GCF_000195955.2_ASM19595v2_genomic.gbff",
-        threads=4,
         s3_bucket=config["s3_bucket"],
-        output_path="data/snippy/{sample}"
+        snippy_output_path="data/snippy/{sample}",
+        fastq_outdir="data/fastq",
+        reference=config["files"]["reference_genbank"],
+    threads: 4
     log:
         "logs/snippy_{sample}.txt",
     benchmark:
@@ -197,15 +211,29 @@ rule run_snippy:
         "envs/snippy.yaml"
     shell:
         r'''
+        eval "$(conda shell.bash hook)"
+        conda activate snippy
         set -o pipefail; \
         scripts/run_snippy.sh {wildcards.sample} \
         {params.s3_bucket} \
-        {params.output_path} \
-        {params.outdir} \
-        {params.snippy_outdir} \
+        {params.snippy_output_path} \
+        {params.fastq_outdir} \
         {params.reference} \
-        {params.threads} 2>&1 | tee {log:q} \
+        {threads} 2>&1 | tee {log:q} \
         || echo "snippy failed at sample {wildcards.sample}" | tee -a {log:q}
+        rm -f data/fastq/{wildcards.sample}_*.fastq.gz
+        rm -fr data/snippy/{wildcards.sample}/reference
+        rm -f data/snippy/{wildcards.sample}/ref.fa
+        rm -f data/snippy/{wildcards.sample}/snps.b*
+        rm -f data/snippy/{wildcards.sample}/snps.c*
+        rm -f data/snippy/{wildcards.sample}/snps.filt.vcf
+        rm -f data/snippy/{wildcards.sample}/snps.gff
+        rm -f data/snippy/{wildcards.sample}/snps.html
+        rm -f data/snippy/{wildcards.sample}/snps.log
+        rm -f data/snippy/{wildcards.sample}/snps.raw.vcf
+        rm -f data/snippy/{wildcards.sample}/snps.subs.vcf
+        rm -f data/snippy/{wildcards.sample}/snps.t*
+        rm -f data/snippy/{wildcards.sample}/snps.vcf.gz*
         '''
 
 # Calculate & collate quality control statistics from snippy alignment
@@ -268,7 +296,7 @@ checkpoint filter_qc:
         "envs/tsv-utils.yaml"
     shell:
         """
-        tsv-filter --header --gt  pct_reads_mapped:80 data/metadata_stats.tsv \
+        tsv-filter --header --gt  pct_reads_mapped:80 {input.metadata_stats} \
         | tsv-filter --header --gt  target_median_depth:30 \
         | tsv-filter --header --gt  ALIGNED:3529226 \
         | tsv-filter --header --str-eq main_lineage:M.canetti  --invert \
@@ -282,12 +310,12 @@ checkpoint filter_qc:
 rule combine_align:
     input:
         sample=get_alignment_samples,
-        mask_file="defaults/AF14_RLC_Regions.Plus.LowPmapK50E4.H37Rv.bed"
+        mask_file=config["files"]["mask_file"],
     output:
         alignment="data/snippy/core.full.aln",
         snippy_summary="data/snippy/core.txt"
     params:
-        ref="defaults/GCF_000195955.2_ASM19595v2_genomic.fna",
+        ref=config["files"]["reference_fasta"],
         prefix="data/snippy/core"
     log:
         "logs/snippy_combine_align.txt"
@@ -297,17 +325,23 @@ rule combine_align:
         "envs/snippy.yaml"
     shell:
         """
+        eval "$(conda shell.bash hook)"
+        conda activate snippy
         snippy-core --ref {params.ref} \
         $(for f in {input.sample}; do echo data/snippy/$(basename $f _flag.txt); done) \
         --mask {input.mask_file} \
         --prefix {params.prefix} 2> {log}
+        rm -f data/snippy/core.aln
+        rm -f data/snippy/core.ref.fa
+        rm -f data/snippy/core.tab
+        rm -f data/snippy/core.vcf
         """
 
 rule clean_align:
     input:
         alignment="data/snippy/core.full.aln"
     output:
-        clean_alignment="results/clean.full.aln",
+        clean_alignment=temp("results/clean.full.aln"),
     log:
         "logs/snippy_clean_align.txt"
     benchmark:
@@ -316,6 +350,8 @@ rule clean_align:
         "envs/snippy.yaml"
     shell:
         """
+        eval "$(conda shell.bash hook)"        
+        conda activate snippy
         snippy-clean_full_aln \
         {input.alignment} \
         > {output.clean_alignment} 2> {log}
@@ -324,7 +360,7 @@ rule clean_align:
 rule fasta_to_vcf:
     input:
         clean_alignment="results/clean.full.aln",
-        ref="defaults/GCF_000195955.2_ASM19595v2_genomic.fna",
+        ref=config["files"]["reference_fasta"],
     output:
         informative_vcf="results/all_informative.vcf.gz",
         uncompressed_vcf=temp("results/all_informative.vcf")
@@ -344,8 +380,11 @@ rule fasta_to_vcf:
         """
 
 # Replace the snippy qc metrics with metrics that take into account masking.
-# data/snippy/core.txt is an output from rule combine_align
-# FIX: Need to remove the reference sequence from the output file
+# The data/snippy/core.txt is an output from rule combine_align and it
+# includes a row for the Reference sequence, which ends up in the 
+# results/metadata.tsv. The Reference sequence is also present in the 
+# clean.full.aln and results/all_informative.vcf.gz, but is excluded
+# during the phylo workflow
 rule replace_snippyqc:
     input:
         metadata_filtered = "data/metadata_filtered.tsv",
@@ -365,4 +404,178 @@ rule replace_snippyqc:
         snippy={input.snippy_summary} \
         --metadata-id-columns 'accession' 'ID' \
         --output-metadata {output.metadata} 2> {log}
+        """
+
+
+# Phylogenetic workflow
+
+rule filter:
+    input:
+        seq = "results/all_informative.vcf.gz",
+        meta = "results/metadata.tsv",
+        exclude = config["files"]["exclude"],
+    output:
+        "results/filtered.vcf.gz"
+    log:
+        "logs/filter.txt"
+    params:
+        strain_id = config["strain_id_field"]
+    shell:
+        """
+        augur filter --sequences {input.seq} \
+            --metadata {input.meta} \
+            --metadata-id-columns {params.strain_id} \
+            --exclude {input.exclude} \
+            --output {output}
+        """
+
+rule mask:
+    input:
+        seq = "results/filtered.vcf.gz",
+        mask = config["files"]["mask_file"]
+    output:
+       "results/masked.vcf.gz"
+    shell:
+        """
+        augur mask --sequences {input.seq} \
+            --mask {input.mask} \
+            --output {output}
+        """
+
+rule tree:
+    input:
+        aln = "results/masked.vcf.gz",
+        ref = config["files"]["reference_fasta"],
+    output:
+        "results/tree_raw.nwk"
+    params:
+        method = 'iqtree'
+    shell:
+        """
+        augur tree --alignment {input.aln} \
+            --vcf-reference {input.ref} \
+            --method {params.method} \
+            --output {output}
+        """
+
+rule refine:
+    input:
+        tree = "results/tree_raw.nwk",
+        aln = "results/masked.vcf.gz",
+        meta = "results/metadata.tsv",
+        ref = config["files"]["reference_fasta"],
+    output:
+        tree = "results/tree.nwk",
+        node_data = "results/branch_lengths.json",
+    params:
+        root = 'mid_point',
+        strain_id = config["strain_id_field"],
+        coal = 'opt'
+    shell:
+        """
+        augur refine --tree {input.tree} \
+            --alignment {input.aln} \
+            --vcf-reference {input.ref} \
+            --metadata {input.meta} \
+            --metadata-id-columns {params.strain_id} \
+            --timetree \
+            --coalescent {params.coal} \
+            --root {params.root} \
+            --output-tree {output.tree} \
+            --output-node-data {output.node_data}
+        """
+
+rule ancestral:
+    input:
+        tree = "results/tree.nwk",
+        alignment = "results/masked.vcf.gz",
+        ref = config["files"]["reference_fasta"],
+    output:
+        nt_data = "results/nt_muts.json",
+        vcf_out = "results/nt_muts.vcf"
+    params:
+        inference = "joint"
+    shell:
+        """
+        augur ancestral --tree {input.tree} \
+            --alignment {input.alignment} \
+            --vcf-reference {input.ref} \
+            --inference {params.inference} \
+            --output-node-data {output.nt_data} \
+            --output-vcf {output.vcf_out}
+        """
+
+rule translate:
+    input:
+        tree = "results/tree.nwk",
+        ref = config["files"]["reference_fasta"],
+        gene_ref = config["files"]["reference_genbank"],
+        vcf = "results/nt_muts.vcf",
+    output:
+        aa_data = "results/aa_muts.json",
+        vcf_out = "results/translations.vcf",
+        vcf_ref = "results/translations_reference.fasta"
+    shell:
+        """
+        augur translate --tree {input.tree} \
+            --vcf-reference {input.ref} \
+            --ancestral-sequences {input.vcf} \
+            --reference-sequence {input.gene_ref} \
+            --output-node-data {output.aa_data} \
+            --alignment-output {output.vcf_out} \
+            --vcf-reference-output {output.vcf_ref}
+        """
+
+rule export:
+    input:
+        tree = "results/tree.nwk",
+        meta = "results/metadata.tsv",
+        branch_lengths = "results/branch_lengths.json",
+        nt_muts = "results/nt_muts.json",
+        aa_muts = "results/aa_muts.json",
+        auspice_config = config["files"]["auspice_config"],
+        colors = config["files"]["colors"],
+    output:
+        auspice_json = rules.all.input.auspice_json,
+    params:
+        strain_id = config["strain_id_field"]
+    shell:
+        """
+        augur export v2 \
+            --tree {input.tree} \
+            --metadata {input.meta} \
+            --metadata-id-columns {params.strain_id} \
+            --node-data {input.branch_lengths} {input.nt_muts} {input.aa_muts} \
+            --colors {input.colors} \
+            --auspice-config {input.auspice_config} \
+            --output {output.auspice_json}
+        """
+
+rule tip_frequencies:
+    """
+    Estimating KDE frequencies for tips
+    """
+    input:
+        tree = "results/tree.nwk",
+        metadata = "results/metadata.tsv",
+    params:
+        strain_id = config["strain_id_field"],
+        min_date = config["tip_frequencies"]["min_date"],
+        max_date = config["tip_frequencies"]["max_date"],
+        narrow_bandwidth = config["tip_frequencies"]["narrow_bandwidth"],
+        wide_bandwidth = config["tip_frequencies"]["wide_bandwidth"],
+    output:
+        tip_freq = "auspice/tb_tip-frequencies.json"
+    shell:
+        r"""
+        augur frequencies \
+            --method kde \
+            --tree {input.tree} \
+            --metadata {input.metadata} \
+            --metadata-id-columns {params.strain_id} \
+            --min-date {params.min_date} \
+            --max-date {params.max_date} \
+            --narrow-bandwidth {params.narrow_bandwidth} \
+            --wide-bandwidth {params.wide_bandwidth} \
+            --output {output.tip_freq}
         """

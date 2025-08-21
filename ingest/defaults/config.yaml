@@ -1,37 +1,12 @@
-# This configuration file should contain all required configuration parameters
-# for the ingest workflow to run to completion.
-#
-# Define optional config parameters with their default values here so that users
-# do not have to dig through the workflows to figure out the default values
-
-# Required to fetch from Entrez
-# entrez_search_term: ""
-
-# Required to fetch from NCBI Datasets
-# ncbi_taxon_id: ""
-
-# The list of NCBI Datasets fields to include from NCBI Datasets output
-# These need to be the "mnemonics" of the NCBI Datasets fields, see docs for full list of fields
-# https://www.ncbi.nlm.nih.gov/datasets/docs/v2/reference-docs/command-line/dataformat/tsv/dataformat_tsv_virus-genome/#fields
-# Note: the "accession" field MUST be provided to match with the sequences
-# sra_metadata_fields:
-#   - accession
-#   - sourcedb
-#   - sra-accs
-#   - isolate-lineage
-#   - geo-region
-#   - geo-location
-#   - isolate-collection-date
-#   - release-date
-#   - update-date
-#   - length
-#   - host-name
-#   - is-lab-host
-#   - isolate-lineage-source
-#   - biosample-acc
-#   - submitter-names
-#   - submitter-affiliation
-#   - submitter-country
+strain_id_field: "accession"
+s3_bucket: "nextstrain-data"
+files:
+    exclude: "defaults/dropped_strains.txt"
+    reference_genbank: "defaults/GCF_000195955.2_ASM19595v2_genomic.gbff"
+    reference_fasta: "defaults/GCF_000195955.2_ASM19595v2_genomic.fna"
+    mask_file: "defaults/AF14_RLC_Regions.Plus.LowPmapK50E4.H37Rv.bed"
+    colors: "defaults/colors.tsv"
+    auspice_config: "defaults/auspice_config.json"
 
 # Config parameters related to the curate pipeline
 curate:
@@ -83,29 +58,8 @@ curate:
   annotations_id: "accession"
   # The ID field in the metadata to use as the sequence id in the output FASTA file
   output_id_field: "accession"
-  # The field in the NDJSON record that contains the actual genomic sequence
-  # output_sequence_field: "sequence"
-  # The field in the NDJSON record that contains the actual GenBank accession
-  sra_accession: 'accession'
-  # The list of metadata columns to keep in the final output of the curation pipeline.
-  # metadata_columns: [
-  #   "accession",
-  #   "accession_version",
-  #   "strain",
-  #   "date",
-  #   "region",
-  #   "country",
-  #   "division",
-  #   "location",
-  #   "length",
-  #   "host",
-  #   "is_lab_host",
-  #   "date_released",
-  #   "date_updated",
-  #   "sra_accessions",
-  #   "authors",
-  #   "full_authors",
-  #   "institution",
-  #   "url"
-  # ]
-s3_bucket: "nextstrain-tmp"
+tip_frequencies:
+    min_date: "2000-01-01"
+    max_date: "10M"
+    narrow_bandwidth: 0.2
+    wide_bandwidth: 0.6
