@@ -48,15 +48,22 @@ rule all:
         auspice_json = "auspice/tb.json",
         tip_frequencies_json="auspice/tb_tip-frequencies.json",
 
-rule download:
-    """Downloading metadata from data.nextstrain.org"""
+rule fetch_sra:
     output:
         metadata_raw = "data/metadata_raw.tsv"
     params:
-        metadata_url = "https://data.nextstrain.org/files/workflows/tb/tb_metadata_illumina_20250211.tsv"
+        query = "scripts/query.sql"
+    log:
+        "logs/fetch_sra.txt",
+    benchmark:
+        "benchmarks/fetch_sra.txt"
+    conda:
+        "envs/duckdb.yaml"
     shell:
         """
-        curl -fsSL {params.metadata_url:q} --output {output.metadata_raw}
+        eval "$(conda shell.bash hook)"
+        conda activate duckdb
+        duckdb -f {params.query} 2> {log}
         """
 
 def format_field_map(field_map: dict[str, str]) -> str:
