@@ -512,11 +512,32 @@ rule translate:
             --vcf-reference-output {output.vcf_ref}  2> {log}
         """
 
+# Remove time from from branch_lengths.json so that a time tree is not created
+rule remove_time:
+    input:
+        "results/branch_lengths.json"
+    output:
+        "results/branch_lengths_div_only.json"
+    log:
+        "logs/remove_time.txt"
+    benchmark:
+        "benchmarks/remove_time.txt"
+    run:
+        import json
+        with open(input[0], 'r') as fh:
+            data = json.load(fh)
+        new_nodes = {}
+        for name, attrs in data['nodes'].items():
+            new_nodes[name] = {'mutation_length': attrs.get('mutation_length')}
+        data['nodes'] = new_nodes
+        with open(output[0], 'w') as fh:
+            json.dump(data, fh, indent=2)
+
 rule export:
     input:
         tree = "results/tree.nwk",
         meta = "results/metadata.tsv",
-        branch_lengths = "results/branch_lengths.json",
+        branch_lengths = "results/branch_lengths_div_only.json",
         nt_muts = "results/nt_muts.json",
         aa_muts = "results/aa_muts.json",
         auspice_config = config["files"]["auspice_config"],

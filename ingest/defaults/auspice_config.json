@@ -12,11 +12,6 @@
     "type": "categorical"
    },
    {
-    "key": "num_date",
-    "title": "Sampling date",
-    "type": "continuous"
-   },
-   {
      "key": "region",
      "title": "Region",
      "type": "categorical"
