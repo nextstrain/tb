@@ -173,7 +173,12 @@
   "display_defaults": {
    "distance_measure": "div",
    "color_by": "main_lineage",
-   "layout": "unrooted"
+   "layout": "unrooted",
+   "panels": [
+    "tree",
+    "map",
+    "frequencies"
+  ]
  },
  "panels": [
    "tree",
