@@ -399,6 +399,8 @@ rule filter:
         "results/filtered.vcf.gz"
     log:
         "logs/filter.txt"
+    benchmark:
+        "benchmarks/filter.txt"
     params:
         strain_id = config["strain_id_field"]
     shell:
@@ -418,12 +420,16 @@ rule tree:
         "results/tree_raw.nwk"
     params:
         method = 'iqtree'
+    log:
+        "logs/tree.txt"
+    benchmark:
+        "benchmarks/tree.txt"
     shell:
         """
         augur tree --alignment {input.aln} \
             --vcf-reference {input.ref} \
             --method {params.method} \
-            --output {output}
+            --output {output}  2> {log}
         """
 
 rule refine:
@@ -435,6 +441,10 @@ rule refine:
     output:
         tree = "results/tree.nwk",
         node_data = "results/branch_lengths.json",
+    log:
+        "logs/refine.txt"
+    benchmark:
+        "benchmarks/refine.txt"
     params:
         root = 'mid_point',
         strain_id = config["strain_id_field"],
@@ -450,7 +460,7 @@ rule refine:
             --coalescent {params.coal} \
             --root {params.root} \
             --output-tree {output.tree} \
-            --output-node-data {output.node_data}
+            --output-node-data {output.node_data}  2> {log}
         """
 
 rule ancestral:
@@ -461,6 +471,10 @@ rule ancestral:
     output:
         nt_data = "results/nt_muts.json",
         vcf_out = "results/nt_muts.vcf"
+    log:
+        "logs/ancestral.txt"
+    benchmark:
+        "benchmarks/ancestral.txt"
     params:
         inference = "joint"
     shell:
@@ -470,7 +484,7 @@ rule ancestral:
             --vcf-reference {input.ref} \
             --inference {params.inference} \
             --output-node-data {output.nt_data} \
-            --output-vcf {output.vcf_out}
+            --output-vcf {output.vcf_out}  2> {log}
         """
 
 rule translate:
@@ -483,6 +497,10 @@ rule translate:
         aa_data = "results/aa_muts.json",
         vcf_out = "results/translations.vcf",
         vcf_ref = "results/translations_reference.fasta"
+    log:
+        "logs/translate.txt"
+    benchmark:
+        "benchmarks/translate.txt"
     shell:
         """
         augur translate --tree {input.tree} \
@@ -491,7 +509,7 @@ rule translate:
             --reference-sequence {input.gene_ref} \
             --output-node-data {output.aa_data} \
             --alignment-output {output.vcf_out} \
-            --vcf-reference-output {output.vcf_ref}
+            --vcf-reference-output {output.vcf_ref}  2> {log}
         """
 
 rule export:
@@ -505,6 +523,10 @@ rule export:
         colors = config["files"]["colors"],
     output:
         auspice_json = rules.all.input.auspice_json,
+    log:
+        "logs/export.txt"
+    benchmark:
+        "benchmarks/export.txt"
     params:
         strain_id = config["strain_id_field"]
     shell:
@@ -517,6 +539,7 @@ rule export:
             --colors {input.colors} \
             --auspice-config {input.auspice_config} \
             --output {output.auspice_json}
+            --output {output.auspice_json}  2> {log}
         """
 
 rule tip_frequencies:
@@ -526,6 +549,10 @@ rule tip_frequencies:
     input:
         tree = "results/tree.nwk",
         metadata = "results/metadata.tsv",
+    log:
+        "logs/tip_frequencies.txt"
+    benchmark:
+        "benchmarks/tip_frequencies.txt"
     params:
         strain_id = config["strain_id_field"],
         min_date = config["tip_frequencies"]["min_date"],
@@ -545,5 +572,5 @@ rule tip_frequencies:
             --max-date {params.max_date} \
             --narrow-bandwidth {params.narrow_bandwidth} \
             --wide-bandwidth {params.wide_bandwidth} \
-            --output {output.tip_freq}
+            --output {output.tip_freq}  2> {log}
         """
