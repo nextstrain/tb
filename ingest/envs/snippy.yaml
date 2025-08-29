@@ -1,7 +1,0 @@
-channels:
-  - conda-forge
-  - bioconda
-dependencies:
-  - sra-tools=3.2.1
-  - snippy=4.6.0
-  - awscli
