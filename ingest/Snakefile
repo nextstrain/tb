@@ -433,25 +433,12 @@ rule filter:
             --metadata {input.meta} \
             --metadata-id-columns {params.strain_id} \
             --exclude {input.exclude} \
-            --output {output}
-        """
-
-rule mask:
-    input:
-        seq = "results/filtered.vcf.gz",
-        mask = config["files"]["mask_file"]
-    output:
-       "results/masked.vcf.gz"
-    shell:
-        """
-        augur mask --sequences {input.seq} \
-            --mask {input.mask} \
-            --output {output}
+            --output {output}  2> {log}
         """
 
 rule tree:
     input:
-        aln = "results/masked.vcf.gz",
+        aln = "results/filtered.vcf.gz",
         ref = config["files"]["reference_fasta"],
     output:
         "results/tree_raw.nwk"
@@ -468,7 +455,7 @@ rule tree:
 rule refine:
     input:
         tree = "results/tree_raw.nwk",
-        aln = "results/masked.vcf.gz",
+        aln = "results/filtered.vcf.gz",
         meta = "results/metadata.tsv",
         ref = config["files"]["reference_fasta"],
     output:
