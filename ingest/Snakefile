@@ -466,7 +466,7 @@ rule refine:
 rule ancestral:
     input:
         tree = "results/tree.nwk",
-        alignment = "results/masked.vcf.gz",
+        alignment = "results/filtered.vcf.gz",
         ref = config["files"]["reference_fasta"],
     output:
         nt_data = "results/nt_muts.json",
