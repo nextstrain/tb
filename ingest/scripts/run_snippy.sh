@@ -13,7 +13,6 @@ threads="$6"
 # to run on the Fred Hutch cluster, which doesn't allow use of Scratch
 # storage with fasterq-dump, and therefore requires files to be
 # saved on TMPDIR before being moved to fastq_outdir
-
 if [[ -z "${TMPDIR:-}" || ! -d "$TMPDIR" ]]; then
     echo "TMPDIR not set or doesn't exist. Using fastq_outdir as TMPDIR." >&2
     TMPDIR="$fastq_outdir"
@@ -21,22 +20,60 @@ fi
 
 s3_path="files/workflows/tb/${snippy_output_path}"
 
-if ! command -v aws &> /dev/null; then
-    echo "Error: AWS CLI is not available." >&2
+require_cmd() {
+  if ! command -v "$1" &>/dev/null; then
+    echo "Error: required command '$1' not found." >&2
     exit 1
-fi
+  fi
+}
 
+require_cmd aws
+require_cmd zstd
+
+# Upload a file as .zst to S3, then remove local .zst
+upload_zstd() {
+  local src="$1"
+  local dst_s3="$2"   # without .zst extension
+
+  if [[ ! -f "$src" ]]; then
+    echo "Error: file to compress not found: $src" >&2
+    exit 1
+  fi
+
+  # Compress with zstd using multiple threads
+  zstd -f -T"${threads}" -19 "$src" -o "${src}.zst"
+
+  # Upload compressed file
+  aws s3 cp "${src}.zst" "${dst_s3}.zst"
+
+  # Remove local .zst after successful upload
+  rm -f "${src}.zst"
+}
+
+# Verify bucket access
 if ! aws s3 ls "s3://${s3_bucket}" > /dev/null 2>&1; then
     echo "Error: Unable to access s3://${s3_bucket}." >&2
     exit 1
 fi
 
-if [ "$(aws s3api list-objects-v2 --bucket "${s3_bucket}" --prefix "$s3_path" --query 'Contents[]')" != "null" ]; then
-    echo "Found snippy results on S3. Downloading to ${snippy_output_path} …" >&2
+# Only download if BOTH expected .zst files exist on S3
+if aws s3 ls "s3://${s3_bucket}/${s3_path}/snps.aligned.fa.zst" >/dev/null 2>&1 \
+   && aws s3 ls "s3://${s3_bucket}/${s3_path}/snps.vcf.zst" >/dev/null 2>&1; then
+    echo "Found snippy results on S3 (.zst). Downloading to ${snippy_output_path} …" >&2
     mkdir -p "$(dirname "${snippy_output_path}")" "${snippy_output_path}"
-    aws s3 cp "s3://${s3_bucket}/${s3_path}/snps.aligned.fa" "${snippy_output_path}/snps.aligned.fa"
-    aws s3 cp "s3://${s3_bucket}/${s3_path}/snps.vcf"         "${snippy_output_path}/snps.vcf"
+
+    # Download and decompress aligned.fa, then remove local .zst
+    aws s3 cp "s3://${s3_bucket}/${s3_path}/snps.aligned.fa.zst" "${snippy_output_path}/snps.aligned.fa.zst"
+    zstd -d -f "${snippy_output_path}/snps.aligned.fa.zst" -o "${snippy_output_path}/snps.aligned.fa"
+    rm -f "${snippy_output_path}/snps.aligned.fa.zst"
+
+    # Download and decompress vcf, then remove local .zst
+    aws s3 cp "s3://${s3_bucket}/${s3_path}/snps.vcf.zst" "${snippy_output_path}/snps.vcf.zst"
+    zstd -d -f "${snippy_output_path}/snps.vcf.zst" -o "${snippy_output_path}/snps.vcf"
+    rm -f "${snippy_output_path}/snps.vcf.zst"
+
 else
+    # No compressed results found, run Snippy
     fastq1="${fastq_outdir}/${sample}_1.fastq.gz"
     fastq2="${fastq_outdir}/${sample}_2.fastq.gz"
 
@@ -85,6 +122,7 @@ else
                --ref "${reference}" --force --cpus "${threads}"
     fi
 
-    aws s3 cp "${snippy_output_path}/snps.aligned.fa" "s3://${s3_bucket}/${s3_path}/snps.aligned.fa"
-    aws s3 cp "${snippy_output_path}/snps.vcf"         "s3://${s3_bucket}/${s3_path}/snps.vcf"
+    # Compress with zstd before uploading, then remove local .zst
+    upload_zstd "${snippy_output_path}/snps.aligned.fa" "s3://${s3_bucket}/${s3_path}/snps.aligned.fa"
+    upload_zstd "${snippy_output_path}/snps.vcf"         "s3://${s3_bucket}/${s3_path}/snps.vcf"
 fi

@@ -18,22 +18,35 @@ if [[ -z "${TMPDIR:-}" || ! -d "$TMPDIR" ]]; then
     TMPDIR="$fastq_outdir"
 fi
 
-s3_path="files/workflows/tb/${tb_output_path}"
+s3_path="files/workflows/tb/${tb_output_path}"  # S3 key for the (compressed) tb-profiler output
 
-if ! command -v aws &> /dev/null; then
-    echo "Error: AWS CLI is not available." >&2
+require_cmd() {
+  if ! command -v "$1" &>/dev/null; then
+    echo "Error: required command '$1' not found." >&2
     exit 1
-fi
+  fi
+}
 
+# Fail-fast dependency checks
+require_cmd aws
+require_cmd zstd
+
+# Verify bucket access
 if ! aws s3 ls "s3://${s3_bucket}" > /dev/null 2>&1; then
     echo "Error: Unable to access s3://${s3_bucket}." >&2
     exit 1
 fi
 
-if aws s3api head-object --bucket "${s3_bucket}" --key "$s3_path" > /dev/null 2>&1; then
-    echo "Found tb-profiler results on S3. Downloading to ${tb_output_path} …" >&2
+# Only download if expected .zst files exist
+if aws s3 ls "s3://${s3_bucket}/${s3_path}.zst" >/dev/null 2>&1; then
+    echo "Found tb-profiler results on S3 (.zst). Downloading to ${tb_output_path} …" >&2
     mkdir -p "$(dirname "${tb_output_path}")"
-    aws s3 cp "s3://${s3_bucket}/$s3_path" "${tb_output_path}"
+
+    aws s3 cp "s3://${s3_bucket}/${s3_path}.zst" "${tb_output_path}.zst"
+    zstd -d -f "${tb_output_path}.zst" -o "${tb_output_path}"
+    rm -f "${tb_output_path}.zst"
+
+    # No compressed results found, run tbprofiler
 else
     fastq1="${fastq_outdir}/${sample}_1.fastq.gz"
     fastq2="${fastq_outdir}/${sample}_2.fastq.gz"
@@ -79,6 +92,9 @@ else
         tb-profiler profile -1 "$fastq1" -p "${sample}" --txt --dir "${tb_outdir}" --threads "${threads}"
     fi
 
-    echo "Uploading results to S3…" >&2
-    aws s3 cp "${tb_output_path}" "s3://${s3_bucket}/$s3_path"
+    echo "Uploading compressed tb-profiler result to S3…" >&2
+    # Compress -> upload -> remove local .zst (leave plain file locally)
+    zstd -f -T"${threads}" -19 "${tb_output_path}" -o "${tb_output_path}.zst"
+    aws s3 cp "${tb_output_path}.zst" "s3://${s3_bucket}/${s3_path}.zst"
+    rm -f "${tb_output_path}.zst"
 fi
