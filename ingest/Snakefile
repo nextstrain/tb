@@ -542,6 +542,7 @@ rule export:
         aa_muts = "results/aa_muts.json",
         auspice_config = config["files"]["auspice_config"],
         colors = config["files"]["colors"],
+        description=config["files"]["description"]
     output:
         auspice_json = rules.all.input.auspice_json,
     log:
@@ -559,7 +560,7 @@ rule export:
             --node-data {input.branch_lengths} {input.nt_muts} {input.aa_muts} \
             --colors {input.colors} \
             --auspice-config {input.auspice_config} \
-            --output {output.auspice_json}
+            --description {input.description} \
             --output {output.auspice_json}  2> {log}
         """
 
