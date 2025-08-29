@@ -558,7 +558,6 @@ rule tip_frequencies:
         min_date = config["tip_frequencies"]["min_date"],
         max_date = config["tip_frequencies"]["max_date"],
         narrow_bandwidth = config["tip_frequencies"]["narrow_bandwidth"],
-        wide_bandwidth = config["tip_frequencies"]["wide_bandwidth"],
     output:
         tip_freq = "auspice/tb_tip-frequencies.json"
     shell:
@@ -571,6 +570,5 @@ rule tip_frequencies:
             --min-date {params.min_date} \
             --max-date {params.max_date} \
             --narrow-bandwidth {params.narrow_bandwidth} \
-            --wide-bandwidth {params.wide_bandwidth} \
             --output {output.tip_freq}  2> {log}
         """

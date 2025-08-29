@@ -62,4 +62,3 @@ tip_frequencies:
     min_date: "2000-01-01"
     max_date: "10M"
     narrow_bandwidth: 0.2
-    wide_bandwidth: 0.6
