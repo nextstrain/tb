@@ -9,15 +9,6 @@ fastq_outdir="$4"
 reference="$5"
 threads="$6"
 
-# If TMPDIR doesn't exist, use fastq_outdir. This enables this script
-# to run on the Fred Hutch cluster, which doesn't allow use of Scratch
-# storage with fasterq-dump, and therefore requires files to be
-# saved on TMPDIR before being moved to fastq_outdir
-if [[ -z "${TMPDIR:-}" || ! -d "$TMPDIR" ]]; then
-    echo "TMPDIR not set or doesn't exist. Using fastq_outdir as TMPDIR." >&2
-    TMPDIR="$fastq_outdir"
-fi
-
 s3_path="files/workflows/tb/${snippy_output_path}"
 
 require_cmd() {
@@ -82,33 +73,30 @@ else
         mkdir -p "${fastq_outdir}"
 
         # Default split-3 behavior: may produce _1.fastq, _2.fastq, and/or ${sample}.fastq
-        fasterq-dump "${sample}" -e "${threads}" --temp "${TMPDIR}" --outdir "${TMPDIR}"
+        fasterq-dump "${sample}" -e "${threads}" --outdir "${fastq_outdir}"
 
-        echo "Compressing & moving FASTQ files…" >&2
+        echo "Compressing FASTQ files…" >&2
 
         # Paired reads (if present)
-        if [[ -f "${TMPDIR}/${sample}_1.fastq" ]]; then
-            gzip -f "${TMPDIR}/${sample}_1.fastq"
-            mv "${TMPDIR}/${sample}_1.fastq.gz" "${fastq1}"
+        if [[ -f "${fastq_outdir}/${sample}_1.fastq" ]]; then
+            gzip -f "${fastq_outdir}/${sample}_1.fastq"
         fi
-        if [[ -f "${TMPDIR}/${sample}_2.fastq" ]]; then
-            gzip -f "${TMPDIR}/${sample}_2.fastq"
-            mv "${TMPDIR}/${sample}_2.fastq.gz" "${fastq2}"
+        if [[ -f "${fastq_outdir}/${sample}_2.fastq" ]]; then
+            gzip -f "${fastq_outdir}/${sample}_2.fastq"
         fi
 
         # Single-end case: only ${sample}.fastq exists
-        if [[ ! -f "$fastq1" && -f "${TMPDIR}/${sample}.fastq" ]]; then
-            gzip -f "${TMPDIR}/${sample}.fastq"
-            mv "${TMPDIR}/${sample}.fastq.gz" "${fastq1}"
+        if [[ ! -f "$fastq1" && -f "${fastq_outdir}/${sample}.fastq" ]]; then
+            gzip -f "${fastq_outdir}/${sample}.fastq"
+            mv "${fastq_outdir}/${sample}.fastq.gz" "${fastq1}"
         fi
 
         # Sanity check
         if [[ ! -f "${fastq1}" ]]; then
             echo "Error: No usable FASTQ generated for ${sample}." >&2
-            ls -l "${TMPDIR}" || true
+            ls -l "${fastq_outdir}" || true
             exit 1
         fi
-        # Note: orphan reads (${sample}.fastq) are intentionally ignored if _1/_2 exist.
     fi
 
     mkdir -p "${snippy_output_path}"
