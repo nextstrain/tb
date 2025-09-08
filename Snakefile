@@ -93,9 +93,10 @@ checkpoint filter_subsample:
         augur filter \
             --metadata {input.metadata_curate} \
             --metadata-id-columns accession \
-            --query "(mbases > 180 & (country != 'Uncalculated'))" \
-	        --subsample-max-sequences 10 \
-	        --min-date 2005 \
+            --query "(mbases > 180 & mbases < 1500 & (country != 'Uncalculated'))" \
+	        --group-by country year \
+	        --sequences-per-group 1 \
+	        --min-date 1990 \
 	        --output-metadata {output.metadata_subsample} 2> {log}
         """
 
