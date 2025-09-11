@@ -25,7 +25,7 @@ rule fetch_sra:
         """
         eval "$(conda shell.bash hook)"
         conda activate duckdb
-        duckdb -f {params.query} 2> {log}
+        duckdb -f {params.query} >{output.metadata_raw} 2> {log}
         """
 
 def format_field_map(field_map: dict[str, str]) -> str:
