@@ -14,7 +14,9 @@ The results of running this workflow are publicly visible at nextstrain.org/tb
 
 
 ## Installation
-Follow the [standard installation instructions](https://docs.nextstrain.org/en/latest/install.html) for Nextstrain's suite of software tools.
+
+This workflow requires installation of the [Nextstrain CLI](https://docs.nextstrain.org/en/latest/install.html#install-nextstrain-cli) and [Docker](https://www.docker.com/).
+
 
 ## Usage:
 
