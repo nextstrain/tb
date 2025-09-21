@@ -23,9 +23,11 @@ rule fetch_sra:
         "benchmarks/fetch_sra.txt"
     shell:
         """
+        exec &> >(tee {log:q})
+
         eval "$(conda shell.bash hook)"
         conda activate duckdb
-        duckdb -f {params.query} >{output.metadata_raw} 2> {log}
+        duckdb -f {params.query} >{output.metadata_raw}
         """
 
 def format_field_map(field_map: dict[str, str]) -> str:
@@ -57,6 +59,8 @@ rule curate:
         id_field=config["curate"]["output_id_field"],
     shell:
         """
+        exec &> >(tee {log:q})
+
         augur curate passthru \
             --metadata {input.metadata_raw} \
             | augur curate rename \
@@ -76,7 +80,7 @@ rule curate:
             | augur curate apply-record-annotations \
                 --annotations {input.annotations} \
                 --id-field {params.annotations_id} \
-                --output-metadata {output.metadata_curate} 2> {log}
+                --output-metadata {output.metadata_curate}
         """
 
 checkpoint filter_subsample:
@@ -90,6 +94,8 @@ checkpoint filter_subsample:
         "benchmarks/filter_subsample.txt"
     shell:
         """
+        exec &> >(tee {log:q})
+
         augur filter \
             --metadata {input.metadata_curate} \
             --metadata-id-columns accession \
@@ -97,7 +103,7 @@ checkpoint filter_subsample:
 	        --group-by country year \
 	        --sequences-per-group 1 \
 	        --min-date 1990 \
-	        --output-metadata {output.metadata_subsample} 2> {log}
+	        --output-metadata {output.metadata_subsample}
         """
 
 # This rule removes output files that are not needed in subsequent rules.
@@ -118,6 +124,8 @@ rule run_tbprofiler:
         "benchmarks/tbprofiler_{sample}.txt",
     shell:
         r'''
+        exec &> >(tee {log:q})
+
         eval "$(conda shell.bash hook)"
         conda activate tb-profiler
         set -o pipefail; \
@@ -126,8 +134,8 @@ rule run_tbprofiler:
         {params.tb_output_path} \
         {params.fastq_outdir} \
         {params.tb_outdir} \
-        {threads} 2>&1 | tee {log:q} \
-        || echo "tbprofiler failed at sample {wildcards.sample}" | tee -a {log:q}
+        {threads} \
+        || echo "tbprofiler failed at sample {wildcards.sample}"
         rm -f data/tbprofiler/bam/{wildcards.sample}.bam*
         rm -f data/tbprofiler/vcf/{wildcards.sample}.targets.vcf.gz
         '''
@@ -156,11 +164,13 @@ rule tbprofiler_collate:
         "benchmarks/tbprofiler_collate.txt"
     shell:
         """
+        exec &> >(tee {log:q})
+
         eval "$(conda shell.bash hook)"
         conda activate tb-profiler
         tb-profiler collate \
         --prefix {params.prefix} \
-        --dir {params.dir} 2> {log}
+        --dir {params.dir}
         """
 
 # Ensures that snippy doesn't start running on a given sample until run_tbprofiler has completed 
@@ -190,6 +200,8 @@ rule run_snippy:
         "benchmarks/snippy_{sample}.txt",
     shell:
         r'''
+        exec &> >(tee {log:q})
+
         eval "$(conda shell.bash hook)"
         conda activate snippy
         set -o pipefail; \
@@ -198,8 +210,8 @@ rule run_snippy:
         {params.snippy_output_path} \
         {params.fastq_outdir} \
         {params.reference} \
-        {threads} 2>&1 | tee {log:q} \
-        || echo "snippy failed at sample {wildcards.sample}" | tee -a {log:q}
+        {threads} \
+        || echo "snippy failed at sample {wildcards.sample}"
         rm -f data/fastq/{wildcards.sample}_*.fastq.gz
         rm -fr data/snippy/{wildcards.sample}/reference
         rm -f data/snippy/{wildcards.sample}/ref.fa
@@ -239,8 +251,10 @@ rule snippy_qc:
         "benchmarks/snippy_qc.txt"
     shell:
         """
+        exec &> >(tee {log:q})
+
         python scripts/summarize_snippy.py \
-        --base_dir data/snippy 2> {log}
+        --base_dir data/snippy
         """
 
 # This is an inner join so that samples that failed tbprofiler or snippy 
@@ -261,10 +275,12 @@ rule merge_metadata:
         "benchmarks/merge_metadata.txt"
     shell:
         """
+        exec &> >(tee {log:q})
+
         csvtk join -t -f 1 {input.metadata_subsample} \
         {input.snippy_summary} \
         {input.tbprofiler_output} \
-        > {output.metadata_stats} 2> {log}
+        > {output.metadata_stats}
         """
 
 # Filter out poor-quality samples and samples that are M. canetti.
@@ -279,11 +295,13 @@ checkpoint filter_qc:
         "benchmarks/filter_qc.txt"
     shell:
         """
+        exec &> >(tee {log:q})
+
         tsv-filter --header --gt  pct_reads_mapped:80 {input.metadata_stats} \
         | tsv-filter --header --gt  target_median_depth:30 \
         | tsv-filter --header --gt  ALIGNED:3529226 \
         | tsv-filter --header --str-eq main_lineage:M.canetti  --invert \
-        > {output.metadata_filtered} 2> {log}
+        > {output.metadata_filtered}
         """
 
 # Ensures that only samples that passed all QC are included in the alignment
@@ -316,12 +334,14 @@ rule combine_align:
         "benchmarks/snippy_combine_align.txt"
     shell:
         """
+        exec &> >(tee {log:q})
+
         eval "$(conda shell.bash hook)"
         conda activate snippy
         snippy-core --ref {params.ref} \
         $(for f in {input.sample}; do echo data/snippy/$(basename $f _flag.txt); done) \
         --mask {input.mask_file} \
-        --prefix {params.prefix} 2> {log}
+        --prefix {params.prefix}
         rm -f data/snippy/core.aln
         rm -f data/snippy/core.ref.fa
         rm -f data/snippy/core.tab
@@ -339,11 +359,13 @@ rule clean_align:
         "benchmarks/snippy_clean_align.txt"
     shell:
         """
+        exec &> >(tee {log:q})
+
         eval "$(conda shell.bash hook)"        
         conda activate snippy
         snippy-clean_full_aln \
         {input.alignment} \
-        > {output.clean_alignment} 2> {log}
+        > {output.clean_alignment}
         """
 
 rule fasta_to_vcf:
@@ -359,10 +381,12 @@ rule fasta_to_vcf:
         "benchmarks/fasta_to_vcf.txt"
     shell:
         """
+        exec &> >(tee {log:q})
+
         python scripts/fasta_to_vcf.py \
         {input.ref} \
         {input.clean_alignment} \
-        {output.uncompressed_vcf} 2> {log}
+        {output.uncompressed_vcf}
         gzip -c {output.uncompressed_vcf} > {output.informative_vcf}
         """
 
@@ -384,11 +408,13 @@ rule replace_snippyqc:
         "benchmarks/replace_snippyqc.txt"
     shell:
         """
+        exec &> >(tee {log:q})
+
         augur merge \
         --metadata filtered={input.metadata_filtered} \
         snippy={input.snippy_summary} \
         --metadata-id-columns 'accession' 'ID' \
-        --output-metadata {output.metadata} 2> {log}
+        --output-metadata {output.metadata}
         """
 
 
@@ -409,11 +435,13 @@ rule filter:
         strain_id = config["strain_id_field"]
     shell:
         """
+        exec &> >(tee {log:q})
+
         augur filter --sequences {input.seq} \
             --metadata {input.meta} \
             --metadata-id-columns {params.strain_id} \
             --exclude {input.exclude} \
-            --output {output}  2> {log}
+            --output {output}
         """
 
 rule tree:
@@ -430,10 +458,12 @@ rule tree:
         "benchmarks/tree.txt"
     shell:
         """
+        exec &> >(tee {log:q})
+
         augur tree --alignment {input.aln} \
             --vcf-reference {input.ref} \
             --method {params.method} \
-            --output {output}  2> {log}
+            --output {output}
         """
 
 rule refine:
@@ -455,6 +485,8 @@ rule refine:
         coal = 'opt'
     shell:
         """
+        exec &> >(tee {log:q})
+
         augur refine --tree {input.tree} \
             --alignment {input.aln} \
             --vcf-reference {input.ref} \
@@ -464,7 +496,7 @@ rule refine:
             --coalescent {params.coal} \
             --root {params.root} \
             --output-tree {output.tree} \
-            --output-node-data {output.node_data}  2> {log}
+            --output-node-data {output.node_data}
         """
 
 rule ancestral:
@@ -483,12 +515,14 @@ rule ancestral:
         inference = "joint"
     shell:
         """
+        exec &> >(tee {log:q})
+
         augur ancestral --tree {input.tree} \
             --alignment {input.alignment} \
             --vcf-reference {input.ref} \
             --inference {params.inference} \
             --output-node-data {output.nt_data} \
-            --output-vcf {output.vcf_out}  2> {log}
+            --output-vcf {output.vcf_out}
         """
 
 rule translate:
@@ -507,13 +541,15 @@ rule translate:
         "benchmarks/translate.txt"
     shell:
         """
+        exec &> >(tee {log:q})
+
         augur translate --tree {input.tree} \
             --vcf-reference {input.ref} \
             --ancestral-sequences {input.vcf} \
             --reference-sequence {input.gene_ref} \
             --output-node-data {output.aa_data} \
             --alignment-output {output.vcf_out} \
-            --vcf-reference-output {output.vcf_ref}  2> {log}
+            --vcf-reference-output {output.vcf_ref}
         """
 
 # Remove time from from branch_lengths.json so that a time tree is not created
@@ -557,6 +593,8 @@ rule export:
         strain_id = config["strain_id_field"]
     shell:
         """
+        exec &> >(tee {log:q})
+
         augur export v2 \
             --tree {input.tree} \
             --metadata {input.meta} \
@@ -565,7 +603,7 @@ rule export:
             --colors {input.colors} \
             --auspice-config {input.auspice_config} \
             --description {input.description} \
-            --output {output.auspice_json}  2> {log}
+            --output {output.auspice_json}
         """
 
 rule tip_frequencies:
@@ -588,6 +626,8 @@ rule tip_frequencies:
         tip_freq = "auspice/tb_tip-frequencies.json"
     shell:
         r"""
+        exec &> >(tee {log:q})
+
         augur frequencies \
             --method kde \
             --tree {input.tree} \
@@ -596,5 +636,5 @@ rule tip_frequencies:
             --min-date {params.min_date} \
             --max-date {params.max_date} \
             --narrow-bandwidth {params.narrow_bandwidth} \
-            --output {output.tip_freq}  2> {log}
+            --output {output.tip_freq}
         """
