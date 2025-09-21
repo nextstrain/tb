@@ -16,3 +16,9 @@ main_lineage	lineage6	#5AA4A9
 main_lineage	lineage7	#4A8BC3
 main_lineage	lineage8	#4067CF
 main_lineage	lineage9	#403CC5
+drtype	Sensitive	#447CCD
+drtype	RR-TB	#5EA9A1
+drtype	HR-TB	#8ABB6A
+drtype	MDR-TB	#BEBB48
+drtype	Pre-XDR-TB	#E29E39
+drtype	XDR-TB	#E2562B
