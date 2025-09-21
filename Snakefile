@@ -100,6 +100,9 @@ checkpoint filter_subsample:
 	        --output-metadata {output.metadata_subsample} 2> {log}
         """
 
+# This rule removes output files that are not needed in subsequent rules.
+# If fastq files are downloaded, they will not be deleted so that
+# snippy can use them (and then delete them).
 rule run_tbprofiler:
     output:
         touch("data/tbprofiler/flags/{sample}_flag.txt"),
