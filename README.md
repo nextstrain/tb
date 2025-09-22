@@ -9,9 +9,7 @@ This workflow performs the following analysis:
 * Creates a multi-sample VCF of informative sites using a custom script
 * Performs phylogenetic reconstruction using [IQTREE](http://www.iqtree.org/)
 
-The results of running this workflow are publicly visible at nextstrain.org/tb
-
-
+The results of running this workflow are publicly visible at [nextstrain.org/tb/global](https://nextstrain.org/tb/global).
 
 ## Installation
 
