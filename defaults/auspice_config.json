@@ -37,20 +37,42 @@
      "type": "continuous"
    },
    {
-     "key": "pct_reads_mapped",
-     "title": "Percent reads mapped",
-     "type": "continuous"
-   },
+    "key": "pct_reads_mapped",
+    "title": "Percent reads mapped",
+    "type": "continuous",
+    "scale": [
+      [80, "#DB2823"],
+      [85, "#E1A13A"],
+      [90, "#89BB6B"],
+      [95, "#447DCC"],
+      [100, "#5E1D9D"]
+    ],
+    "legend": [
+      {"value": 82.5, "display": "80-85%",  "bounds": [80, 85]},
+      {"value": 87.5, "display": "85-90%", "bounds": [85, 90]},
+      {"value": 92.5, "display": "90-95%", "bounds": [90, 95]},
+      {"value": 97.5, "display": "95-100%","bounds": [95, 100]}
+    ]
+  },
    {
      "key": "num_reads_mapped",
      "title": "Number mapped reads",
      "type": "continuous"
    },
    {
-     "key": "num_dr_variants",
-     "title": "Number drug res variants",
-     "type": "continuous"
-   },
+    "key": "num_dr_variants",
+    "title": "Number of drug resistance variants",
+    "type": "continuous",
+    "legend": [
+      { "value": 0,    "display": "0",     "bounds": [0, 0] },
+      { "value": 1.5,  "display": "1-2",   "bounds": [0.5, 2.5] },
+      { "value": 3.5,  "display": "3-4",   "bounds": [2.5, 4.5] },
+      { "value": 5.5,  "display": "5-6",   "bounds": [4.5, 6.5] },
+      { "value": 7.5,  "display": "7-8",   "bounds": [6.5, 8.5] },
+      { "value": 9.5,  "display": "9-10",  "bounds": [8.5, 10.5] },
+      { "value": 11.5, "display": "11+",   "bounds": [10.5, 100] }
+    ]
+  },
    {
      "key": "num_other_variants",
      "title": "Number other variants",
@@ -150,13 +172,7 @@
      "key": "cycloserine",
      "title": "cycloserine",
      "type": "categorical"
-   },
-   {
-     "key": "num_dr_variants",
-     "title": "Number of drug resistance variants",
-     "type": "continuous"
    }
- 
   ],
   "geo_resolutions": [
     "country",
