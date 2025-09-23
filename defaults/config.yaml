@@ -5,6 +5,7 @@ files:
     reference_genbank: "defaults/GCF_000195955.2_ASM19595v2_genomic.gbff"
     reference_fasta: "defaults/GCF_000195955.2_ASM19595v2_genomic.fna"
     mask_file: "defaults/AF14_RLC_Regions.Plus.LowPmapK50E4.H37Rv.bed"
+    clades: "defaults/clades.tsv"
     colors: "defaults/colors.tsv"
     auspice_config: "defaults/auspice_config.json"
     description: "defaults/description.md"

@@ -552,6 +552,23 @@ rule translate:
             --vcf-reference-output {output.vcf_ref}
         """
 
+rule clades:
+    input:
+        tree = "results/tree.nwk",
+        nt_muts = "results/nt_muts.json",
+        aa_muts = "results/aa_muts.json",
+        clade_defs = config["files"]["clades"]
+    output:
+        clades = "results/clades.json"
+    shell:
+        """
+        augur clades \
+            --tree {input.tree} \
+            --mutations {input.nt_muts} {input.aa_muts} \
+            --clades {input.clade_defs} \
+            --output {output.clades}
+        """
+
 # Remove time from from branch_lengths.json so that a time tree is not created
 rule remove_time:
     input:
@@ -580,6 +597,7 @@ rule export:
         branch_lengths = "results/branch_lengths_div_only.json",
         nt_muts = "results/nt_muts.json",
         aa_muts = "results/aa_muts.json",
+        clades = "results/clades.json",
         auspice_config = config["files"]["auspice_config"],
         colors = config["files"]["colors"],
         description=config["files"]["description"]
@@ -599,7 +617,7 @@ rule export:
             --tree {input.tree} \
             --metadata {input.meta} \
             --metadata-id-columns {params.strain_id} \
-            --node-data {input.branch_lengths} {input.nt_muts} {input.aa_muts} \
+            --node-data {input.branch_lengths} {input.nt_muts} {input.aa_muts} {input.clades} \
             --colors {input.colors} \
             --auspice-config {input.auspice_config} \
             --description {input.description} \
