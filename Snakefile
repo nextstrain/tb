@@ -1,5 +1,7 @@
 """
-Fetch metadata from NCBI SRA, filter and subsample, fetch fastq files, run snippy & tbprofiler
+Fetch metadata from NCBI SRA, filter and subsample, 
+fetch fastq files, run snippy & tbprofiler,
+run phylogenetic workflow
 
 """
 # The workflow filepaths are written relative to this Snakefile's base directory
