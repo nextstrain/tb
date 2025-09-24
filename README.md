@@ -25,16 +25,12 @@ nextstrain build --image ghcr.io/nextstrain/tb-docker-test:16923552818 .
 ```
 
 ## Storing tbprofiler and snippy results
-For SRA samples that have already been analyzed in previous runs of this workflow, results of tb-profiler and snippy analyses are stored in the `nextstrain-data` AWS S3 bucket:
+For SRA samples that have already been analyzed in previous runs of this workflow, results of tb-profiler and snippy analyses are stored in an S3 bucket:
 ### tb-profiler
-* Results files:
-	* `{sample}.results.json.zst`
-* Path: `files/workflows/tb/data/tbprofiler/results/`
+* `s3://nextstrain-data/files/workflows/tb/data/tbprofiler/results/{sample}.results.json.zst`
 ### snippy 
-* Results files:
-	* `{sample}/snps.aligned.fa.zst`
-	* `{sample}/snps.vcf.zst`
-* Path: `files/workflows/tb/data/snippy/`
+* `s3://nextstrain-data/files/workflows/tb/data/snippy/{sample}/snps.aligned.fa.zst`
+* `s3://nextstrain-data/files/workflows/tb/data/snippy/{sample}/snps.vcf.zst`
 
 These results files should be deleted from the S3 bucket if changes are made to the workflow that would influence the files, such as changes to the parameters used in the tb-profiler or snippy analysis steps, updates to the tb-profiler or snippy installations, or addition of new sequence quality filtering steps prior to running tb-profiler or snippy.
 
