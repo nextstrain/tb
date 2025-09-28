@@ -485,9 +485,9 @@ rule refine:
     benchmark:
         "benchmarks/refine.txt"
     params:
-        root = 'mid_point',
+        root = config["refine"]["root"],
         strain_id = config["strain_id_field"],
-        coal = 'opt'
+        coal = config["refine"]["coal"],
     shell:
         """
         exec &> >(tee {log:q})

@@ -60,6 +60,10 @@ curate:
   annotations_id: "accession"
   # The ID field in the metadata to use as the sequence id in the output FASTA file
   output_id_field: "accession"
+refine:
+    root: "mid_point"
+    coal: "opt"
+# Config parameters related to tip frequency calculation
 tip_frequencies:
     min_date: "2000-01-01"
     max_date: "10M"
