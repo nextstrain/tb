@@ -130,7 +130,6 @@ rule run_tbprofiler:
 
         eval "$(conda shell.bash hook)"
         conda activate tb-profiler
-        set -o pipefail; \
         scripts/run_tbprofiler.sh {wildcards.sample} \
         {params.s3_bucket} \
         {params.tb_output_path} \
@@ -208,7 +207,6 @@ rule run_snippy:
 
         eval "$(conda shell.bash hook)"
         conda activate snippy
-        set -o pipefail; \
         scripts/run_snippy.sh {wildcards.sample} \
         {params.s3_bucket} \
         {params.snippy_output_path} \
