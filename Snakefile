@@ -606,7 +606,7 @@ rule export:
         colors = config["files"]["colors"],
         description=config["files"]["description"]
     output:
-        auspice_json = rules.all.input.auspice_json,
+        auspice_json = "auspice/tb.json"
     log:
         "logs/export.txt"
     benchmark:
