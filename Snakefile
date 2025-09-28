@@ -629,9 +629,6 @@ rule export:
         """
 
 rule tip_frequencies:
-    """
-    Estimating KDE frequencies for tips
-    """
     input:
         tree = "results/tree.nwk",
         metadata = "results/metadata.tsv",
