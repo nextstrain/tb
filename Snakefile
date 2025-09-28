@@ -178,7 +178,9 @@ rule tbprofiler_collate:
 # Ensures that snippy doesn't start running on a given sample until run_tbprofiler has completed 
 # for that sample, so that it doesn't start running on incompletely downloaded fastq files.
 # Also, deletes intermediate and unnecessary files after snippy is completed.
-# Doesn't wait for ALL samples to be run through tbprofiler before starting snippy on 
+# Setting `priority: 1000` makes the rule run_snippy be preferred by the scheduler over other rules that
+# are ready to execute at the same time. This ensures that the workflow
+# doesn't wait for ALL samples to be run through tbprofiler before starting snippy on 
 # individual samples; otherwise large intermediate files would accumulate for each sample and
 # take up large amounts of storage space.
 def tbprofiler_flag(wildcards):
