@@ -557,21 +557,27 @@ rule translate:
             --vcf-reference-output {output.vcf_ref}
         """
 
-rule clades:
+rule label_lineages:
     input:
+        metadata = "results/metadata.tsv",
         tree = "results/tree.nwk",
-        nt_muts = "results/nt_muts.json",
-        aa_muts = "results/aa_muts.json",
-        clade_defs = config["files"]["clades"]
     output:
-        clades = "results/clades.json"
+        node_data = "results/lineages.json"
+    benchmark:
+        "benchmarks/label_lineages.txt"
+    log:
+        "logs/label_lineages.txt"
+    params:
+        strain_id = config["strain_id_field"]
     shell:
-        """
-        augur clades \
+        r"""
+        exec &> >(tee {log:q})
+
+        python scripts/label-lineage-internal-nodes.py \
+            --metadata {input.metadata} \
             --tree {input.tree} \
-            --mutations {input.nt_muts} {input.aa_muts} \
-            --clades {input.clade_defs} \
-            --output {output.clades}
+            --id-columns {params.strain_id} \
+            --output {output.node_data}
         """
 
 # Remove time from from branch_lengths.json so that a time tree is not created
@@ -602,7 +608,7 @@ rule export:
         branch_lengths = "results/branch_lengths_div_only.json",
         nt_muts = "results/nt_muts.json",
         aa_muts = "results/aa_muts.json",
-        clades = "results/clades.json",
+        lineages = "results/lineages.json",
         auspice_config = config["files"]["auspice_config"],
         colors = config["files"]["colors"],
         description=config["files"]["description"]
@@ -622,7 +628,7 @@ rule export:
             --tree {input.tree} \
             --metadata {input.meta} \
             --metadata-id-columns {params.strain_id} \
-            --node-data {input.branch_lengths} {input.nt_muts} {input.aa_muts} {input.clades} \
+            --node-data {input.branch_lengths} {input.nt_muts} {input.aa_muts} {input.lineages} \
             --colors {input.colors} \
             --auspice-config {input.auspice_config} \
             --description {input.description} \
