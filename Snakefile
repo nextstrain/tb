@@ -393,6 +393,9 @@ rule fasta_to_vcf:
         """
 
 # Replace the snippy qc metrics with metrics that take into account masking.
+# This is accomplished by overwriting the values in data/metadata_filtered.tsv
+# (which don't account for masking) with the values in data/snippy/core.txt
+# (which do account for masking).
 # The data/snippy/core.txt is an output from rule combine_align and it
 # includes a row for the Reference sequence, which ends up in the 
 # results/metadata.tsv. The Reference sequence is also present in the 
