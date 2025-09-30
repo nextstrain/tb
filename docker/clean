@@ -1,0 +1,18 @@
+#!/bin/bash
+#
+# Cleans up after the build process by removing build artifacts, caches, and logs.
+#
+set -euo pipefail
+
+
+builder=nextstrain-tb-builder
+
+
+echo "--> Deleting $builder (and its caches)"
+
+if docker buildx inspect "$builder" &>/dev/null; then
+    docker buildx du --builder "$builder"
+    docker buildx rm --builder "$builder"
+else
+    echo "skipped; $builder does not exist"
+fi
