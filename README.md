@@ -21,7 +21,7 @@ This workflow requires installation of the [Nextstrain CLI](https://docs.nextstr
 > NOTE: Running this workflow will most likely require more compute resources than what is available on your local computer.
 
 ```
-nextstrain build --image ghcr.io/nextstrain/tb-docker-test:16923552818 .
+nextstrain build --image ghcr.io/nextstrain/tb:latest .
 ```
 
 ## Storing tbprofiler and snippy results
