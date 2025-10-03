@@ -37,7 +37,7 @@ These results files should be deleted from the S3 bucket if changes are made to 
 ## Repo history
 The current Nextstrain github repo differs substantially from the original version of the repo.
 
-The original version was created to perform phylogenetic analyses for a specific North America-focused dataset for which a VCF file had already been created by external collaborators. The code and VCF file for that workflow are still available [in a branch of this repo](https://github.com/nextstrain/tb/tree/north-america-archived). That branch of the repo was also originally used in the [Nextstrain tutorial for creating a bacterial workflow](https://docs.nextstrain.org/en/latest/tutorials/creating-a-bacterial-phylogenetic-workflow.html).
+The original version was created to perform phylogenetic analyses for a subset of the data from [Lee et al. 2015](https://www.pnas.org/doi/10.1073/pnas.1507071112), but with geographic location randomized for each sample. The code and VCF file for that workflow are still available [in a branch of this repo](https://github.com/nextstrain/tb/tree/north-america-archived). That branch of the repo was also originally used in the [Nextstrain tutorial for creating a bacterial workflow](https://docs.nextstrain.org/en/latest/tutorials/creating-a-bacterial-phylogenetic-workflow.html).
 
 
 One of the main differences of the current workflow compared to the original workflow is that it starts from raw sequence data from the NCBI SRA rather than starting from a VCF file. This necessitates extra steps in the workflow, including:
