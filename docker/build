@@ -1,0 +1,20 @@
+#!/bin/bash
+#
+# Build the image.
+#
+set -euo pipefail
+
+# `buildx create` is necessary to use a driver that supports multi-platform
+# images.
+builder=nextstrain-tb-builder
+
+
+if ! docker buildx inspect "$builder" &>/dev/null; then
+    # Using a persistent builder allows for faster local development.
+    # However, if this is changed and it was previously run on your machine,
+    # you may need to remove the builder manually before running the script:
+    #     docker buildx rm "custom-builder"
+    docker buildx create --use --name "$builder" --driver docker-container --driver-opt network=host
+fi
+
+docker buildx build "$@" .
