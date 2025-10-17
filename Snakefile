@@ -11,8 +11,8 @@ configfile: "defaults/config.yaml"
 
 rule all:
     input:
-        auspice_json = "auspice/tb.json",
-        tip_frequencies_json="auspice/tb_tip-frequencies.json",
+        auspice_json = "auspice/tb_global.json",
+        tip_frequencies_json="auspice/tb_global_tip-frequencies.json",
 
 rule fetch_sra:
     output:
@@ -613,7 +613,7 @@ rule export:
         colors = config["files"]["colors"],
         description=config["files"]["description"]
     output:
-        auspice_json = "auspice/tb.json"
+        auspice_json = "auspice/tb_global.json"
     log:
         "logs/export.txt"
     benchmark:
@@ -649,7 +649,7 @@ rule tip_frequencies:
         max_date = config["tip_frequencies"]["max_date"],
         narrow_bandwidth = config["tip_frequencies"]["narrow_bandwidth"],
     output:
-        tip_freq = "auspice/tb_tip-frequencies.json"
+        tip_freq = "auspice/tb_global_tip-frequencies.json"
     shell:
         r"""
         exec &> >(tee {log:q})
