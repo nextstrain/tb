@@ -1,0 +1,206 @@
+{
+  "title": "Real-time tracking of Mycobacterium tuberculosis full genome evolution",
+  "maintainers": [
+    {
+      "name": "Kim Andrews",
+      "url": "https://bedford.io/team/kim-andrews"
+    },
+    {
+      "name": "the Nextstrain team",
+      "url": "https://nextstrain.org/team"
+    }
+  ],
+  "build_url": "https://github.com/nextstrain/tb",
+  "colorings": [
+    {
+      "key": "gt",
+      "title": "Genotype",
+      "type": "categorical"
+    },
+    {
+      "key": "region",
+      "title": "Region",
+      "type": "categorical"
+    },
+    {
+      "key": "country",
+      "title": "Country",
+      "type": "categorical"
+    },
+    {
+      "key": "main_lineage",
+      "title": "Main Lineage",
+      "type": "categorical"
+    },
+    {
+      "key": "sub_lineage",
+      "title": "Sublineage",
+      "type": "categorical"
+    },
+    {
+      "key": "target_median_depth",
+      "title": "Target median depth",
+      "type": "continuous"
+    },
+    {
+      "key": "pct_reads_mapped",
+      "title": "Percent reads mapped",
+      "type": "continuous",
+      "scale": [
+        [80, "#DB2823"],
+        [85, "#E1A13A"],
+        [90, "#89BB6B"],
+        [95, "#447DCC"],
+        [100, "#5E1D9D"]
+      ],
+      "legend": [
+        { "value": 82.5, "display": "80-85%", "bounds": [80, 85] },
+        { "value": 87.5, "display": "85-90%", "bounds": [85, 90] },
+        { "value": 92.5, "display": "90-95%", "bounds": [90, 95] },
+        { "value": 97.5, "display": "95-100%", "bounds": [95, 100] }
+      ]
+    },
+    {
+      "key": "num_reads_mapped",
+      "title": "Number mapped reads",
+      "type": "continuous"
+    },
+    {
+      "key": "num_dr_variants",
+      "title": "Number of drug resistance variants",
+      "type": "continuous",
+      "legend": [
+        { "value": 0, "display": "0", "bounds": [0, 0] },
+        { "value": 1.5, "display": "1-2", "bounds": [0.5, 2.5] },
+        { "value": 3.5, "display": "3-4", "bounds": [2.5, 4.5] },
+        { "value": 5.5, "display": "5-6", "bounds": [4.5, 6.5] },
+        { "value": 7.5, "display": "7-8", "bounds": [6.5, 8.5] },
+        { "value": 9.5, "display": "9-10", "bounds": [8.5, 10.5] },
+        { "value": 11.5, "display": "11+", "bounds": [10.5, 100] }
+      ]
+    },
+    {
+      "key": "num_other_variants",
+      "title": "Number other variants",
+      "type": "continuous"
+    },
+    {
+      "key": "drtype",
+      "title": "Drug resistance type",
+      "type": "categorical"
+    },
+    {
+      "key": "rifampicin",
+      "title": "rifampicin",
+      "type": "categorical"
+    },
+    {
+      "key": "isoniazid",
+      "title": "isoniazid",
+      "type": "categorical"
+    },
+    {
+      "key": "ethambutol",
+      "title": "ethambutol",
+      "type": "categorical"
+    },
+    {
+      "key": "pyrazinamide",
+      "title": "pyrazinamide",
+      "type": "categorical"
+    },
+    {
+      "key": "moxifloxacin",
+      "title": "moxifloxacin",
+      "type": "categorical"
+    },
+    {
+      "key": "levofloxacin",
+      "title": "levofloxacin",
+      "type": "categorical"
+    },
+    {
+      "key": "bedaquiline",
+      "title": "bedaquiline",
+      "type": "categorical"
+    },
+    {
+      "key": "delamanid",
+      "title": "delamanid",
+      "type": "categorical"
+    },
+    {
+      "key": "pretomanid",
+      "title": "pretomanid",
+      "type": "categorical"
+    },
+    {
+      "key": "linezolid",
+      "title": "linezolid",
+      "type": "categorical"
+    },
+    {
+      "key": "streptomycin",
+      "title": "streptomycin",
+      "type": "categorical"
+    },
+    {
+      "key": "amikacin",
+      "title": "amikacin",
+      "type": "categorical"
+    },
+    {
+      "key": "kanamycin",
+      "title": "kanamycin",
+      "type": "categorical"
+    },
+    {
+      "key": "capreomycin",
+      "title": "capreomycin",
+      "type": "categorical"
+    },
+    {
+      "key": "clofazimine",
+      "title": "clofazimine",
+      "type": "categorical"
+    },
+    {
+      "key": "ethionamide",
+      "title": "ethionamide",
+      "type": "categorical"
+    },
+    {
+      "key": "para-aminosalicylic_acid",
+      "title": "para-aminosalicylic_acid",
+      "type": "categorical"
+    },
+    {
+      "key": "cycloserine",
+      "title": "cycloserine",
+      "type": "categorical"
+    }
+  ],
+  "geo_resolutions": [
+    "country",
+    "region"
+  ],
+  "filters": [
+    "country"
+  ],
+  "display_defaults": {
+    "distance_measure": "div",
+    "color_by": "main_lineage",
+    "layout": "unrooted",
+    "panels": [
+      "tree",
+      "map",
+      "frequencies"
+    ]
+  },
+  "panels": [
+    "tree",
+    "map",
+    "entropy",
+    "frequencies"
+  ]
+}

@@ -1,17 +1,17 @@
-# Files created by the pipeline, which we want to keep out of git
-# (or at least out of _this_ git repo).
-results/
+# Files created by workflows that we usually want to keep out of git
 auspice/
-build/
+builds/
+data/
+results/
+logs/
+benchmarks/
 
 # Sensitive environment variables
 environment*
+env.d/
 
-# Snakemake state dir
-/.snakemake
-
-# Local config overrides
-/config_local.yaml
+# Snakemake
+.snakemake/
 
 # For Python #
 ##############
@@ -38,3 +38,18 @@ environment*
 Icon?
 ehthumbs.db
 Thumbs.db
+*~
+
+# IDE generated files #
+######################
+.vscode/
+
+# nohup output
+nohup.out
+
+# cluster logs
+slurm-*
+
+# tb-profiler database #
+######################
+tbdb/

@@ -1,0 +1,24 @@
+region	Asia	#447CCD
+region	Oceania	#5EA9A1
+region	Africa	#8ABB6A
+region	Europe	#BEBB48
+region	South America	#E29E39
+region	North America	#E2562B
+main_lineage	La1	#DB2823
+main_lineage	La2	#E35C2C
+main_lineage	La3	#E68A35
+main_lineage	lineage1	#DDA93C
+main_lineage	lineage2	#C7B944
+main_lineage	lineage3	#A9BD53
+main_lineage	lineage4	#8BBB69
+main_lineage	lineage5	#6FB488
+main_lineage	lineage6	#5AA4A9
+main_lineage	lineage7	#4A8BC3
+main_lineage	lineage8	#4067CF
+main_lineage	lineage9	#403CC5
+drtype	Sensitive	#447CCD
+drtype	RR-TB	#5EA9A1
+drtype	HR-TB	#8ABB6A
+drtype	MDR-TB	#BEBB48
+drtype	Pre-XDR-TB	#E29E39
+drtype	XDR-TB	#E2562B
