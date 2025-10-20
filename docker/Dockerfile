@@ -34,6 +34,7 @@ RUN conda create -y --name tb-profiler \
       -c conda-forge -c bioconda \
       sra-tools=3.2.1 \
       tb-profiler=6.6.5 \
+      snpeff!=5.3.0a \
  && conda clean -afy \
  && rm -rf ~/.cache \
  && chmod -R a+rwXt /nextstrain/miniforge/envs/tb-profiler
