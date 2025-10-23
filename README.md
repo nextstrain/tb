@@ -23,6 +23,14 @@ This workflow requires installation of the [Nextstrain CLI](https://docs.nextstr
 ```
 nextstrain build --image ghcr.io/nextstrain/tb:latest .
 ```
+### Deploying builds
+
+The pipeline can automatically deploy resulting builds within the auspice folder
+to nextstrain.org by running:
+
+```
+nextstrain build --image ghcr.io/nextstrain/tb:latest . deploy_all --configfile build-configs/nextstrain-automation/config.yaml
+```
 
 ## Storing tbprofiler and snippy results
 For SRA samples that have already been analyzed in previous runs of this workflow, results of tb-profiler and snippy analyses are stored in an S3 bucket:
