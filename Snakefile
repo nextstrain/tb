@@ -664,3 +664,8 @@ rule tip_frequencies:
             --narrow-bandwidth {params.narrow_bandwidth} \
             --output {output.tip_freq}
         """
+
+if "custom_rules" in config:
+    for rule_file in config["custom_rules"]:
+
+        include: rule_file
