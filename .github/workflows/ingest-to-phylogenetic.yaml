@@ -4,14 +4,14 @@ on:
   schedule:
     # Note times are in UTC, which is 1 or 2 hours behind CET depending on daylight savings.
     #
-    # Currently, we aim to trigger runs at 6pm UTC on Monday
+    # Currently, we aim to trigger runs at 7am UTC on Monday
     #
     # Note, '*' is a special character in YAML, so you have to quote this string.
     #
     # Docs:
     #  - https://docs.github.com/en/actions/learn-github-actions/events-that-trigger-workflows#schedule
 
-    - cron: '0 18 * * 1'
+    - cron: '0 7 * * 1'
 
 
   # Manually triggered using GitHub's UI
