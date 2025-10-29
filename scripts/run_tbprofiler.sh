@@ -1,6 +1,5 @@
 #!/bin/bash
 set -euo pipefail
-set -x  # DEBUGGING
 
 sample="$1"
 s3_bucket="$2"
