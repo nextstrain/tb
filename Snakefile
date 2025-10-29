@@ -303,6 +303,7 @@ checkpoint filter_qc:
         | tsv-filter --header --gt  target_median_depth:30 \
         | tsv-filter --header --gt  ALIGNED:3529226 \
         | tsv-filter --header --str-eq main_lineage:M.canetti  --invert \
+        | tsv-filter --header --str-not-in-fld main_lineage:';' \
         > {output.metadata_filtered}
         """
 
