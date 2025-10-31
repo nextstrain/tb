@@ -1,0 +1,45 @@
+name: Ingest to phylogenetic
+
+on:
+  schedule:
+    # Note times are in UTC, which is 1 or 2 hours behind CET depending on daylight savings.
+    #
+    # Currently, we aim to trigger runs at 7am UTC on Monday
+    #
+    # Note, '*' is a special character in YAML, so you have to quote this string.
+    #
+    # Docs:
+    #  - https://docs.github.com/en/actions/learn-github-actions/events-that-trigger-workflows#schedule
+
+    - cron: '0 7 * * 1'
+
+
+  # Manually triggered using GitHub's UI
+  workflow_dispatch:
+    inputs:
+      image:
+        description: >-
+          Specific container image to use for build.
+          This will override the default image (ghcr.io/nextstrain/tb:latest).
+        required: false
+
+jobs:
+  ingest_to_phylo:
+    permissions:
+      id-token: write
+    uses: nextstrain/.github/.github/workflows/pathogen-repo-build.yaml@master
+    secrets: inherit
+    with:
+      runtime: aws-batch
+      env: |
+        NEXTSTRAIN_DOCKER_IMAGE: ${{ inputs.image || 'ghcr.io/nextstrain/tb:latest' }}
+      run: |
+        nextstrain build \
+          --aws-batch \
+          --detach \
+          --no-download \
+          --cpus 72 \
+          --memory 140GiB \
+          . \
+          deploy_all \
+          --configfile build-configs/nextstrain-automation/config.yaml
