@@ -10,25 +10,17 @@ threads="$6"
 
 s3_path="files/workflows/tb/${tb_output_path}"  # S3 key for the (compressed) tb-profiler output
 
-require_cmd() {
-  if ! command -v "$1" &>/dev/null; then
-    echo "Error: required command '$1' not found." >&2
-    exit 1
-  fi
-}
-
-# Fail-fast dependency checks
-require_cmd aws
-require_cmd zstd
-
-# Verify bucket access
-if ! aws s3 ls "s3://${s3_bucket}" > /dev/null 2>&1; then
-    echo "Error: Unable to access s3://${s3_bucket}." >&2
-    exit 1
+# Check if AWS credentials are configured and bucket is accessible
+AWS_AVAILABLE=false
+if aws s3 ls "s3://${s3_bucket}" > /dev/null 2>&1; then
+    AWS_AVAILABLE=true
+    echo "AWS S3 access confirmed. Will use S3 caching." >&2
+else
+    echo "Warning: Cannot access s3://${s3_bucket}. Running in local-only mode." >&2
 fi
 
-# Only download if expected .zst files exist
-if aws s3 ls "s3://${s3_bucket}/${s3_path}.zst" >/dev/null 2>&1; then
+# Try to download from S3 if AWS is available and results exist
+if [[ "$AWS_AVAILABLE" == "true" ]] && aws s3 ls "s3://${s3_bucket}/${s3_path}.zst" >/dev/null 2>&1; then
     echo "Found tb-profiler results on S3 (.zst). Downloading to ${tb_output_path} …" >&2
     mkdir -p "$(dirname "${tb_output_path}")"
 
@@ -36,7 +28,7 @@ if aws s3 ls "s3://${s3_bucket}/${s3_path}.zst" >/dev/null 2>&1; then
     zstd -d -f "${tb_output_path}.zst" -o "${tb_output_path}"
     rm -f "${tb_output_path}.zst"
 
-    # No compressed results found, run tbprofiler
+# No cached results found or AWS unavailable, run tbprofiler locally
 else
     fastq1="${fastq_outdir}/${sample}_1.fastq.gz"
     fastq2="${fastq_outdir}/${sample}_2.fastq.gz"
@@ -79,9 +71,14 @@ else
         tb-profiler profile -1 "$fastq1" -p "${sample}" --txt --dir "${tb_outdir}" --threads "${threads}"
     fi
 
-    echo "Uploading compressed tb-profiler result to S3…" >&2
-    # Compress -> upload -> remove local .zst (leave plain file locally)
-    zstd -f -T"${threads}" -19 "${tb_output_path}" -o "${tb_output_path}.zst"
-    aws s3 cp "${tb_output_path}.zst" "s3://${s3_bucket}/${s3_path}.zst"
-    rm -f "${tb_output_path}.zst"
+    # Upload to S3 if AWS is available
+    if [[ "$AWS_AVAILABLE" == "true" ]]; then
+        echo "Uploading compressed tb-profiler result to S3…" >&2
+        # Compress -> upload -> remove local .zst (leave plain file locally)
+        zstd -f -T"${threads}" -19 "${tb_output_path}" -o "${tb_output_path}.zst"
+        aws s3 cp "${tb_output_path}.zst" "s3://${s3_bucket}/${s3_path}.zst"
+        rm -f "${tb_output_path}.zst"
+    else
+        echo "Skipping S3 upload (AWS not available)" >&2
+    fi
 fi

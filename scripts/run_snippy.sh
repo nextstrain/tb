@@ -10,15 +10,14 @@ threads="$6"
 
 s3_path="files/workflows/tb/${snippy_output_path}"
 
-require_cmd() {
-  if ! command -v "$1" &>/dev/null; then
-    echo "Error: required command '$1' not found." >&2
-    exit 1
-  fi
-}
-
-require_cmd aws
-require_cmd zstd
+# Check if AWS credentials are configured and bucket is accessible
+AWS_AVAILABLE=false
+if aws s3 ls "s3://${s3_bucket}" > /dev/null 2>&1; then
+    AWS_AVAILABLE=true
+    echo "AWS S3 access confirmed. Will use S3 caching." >&2
+else
+    echo "Warning: Cannot access s3://${s3_bucket}. Running in local-only mode." >&2
+fi
 
 # Upload a file as .zst to S3, then remove local .zst
 upload_zstd() {
@@ -40,14 +39,9 @@ upload_zstd() {
   rm -f "${src}.zst"
 }
 
-# Verify bucket access
-if ! aws s3 ls "s3://${s3_bucket}" > /dev/null 2>&1; then
-    echo "Error: Unable to access s3://${s3_bucket}." >&2
-    exit 1
-fi
-
-# Only download if BOTH expected .zst files exist on S3
-if aws s3 ls "s3://${s3_bucket}/${s3_path}/snps.aligned.fa.zst" >/dev/null 2>&1 \
+# Try to download from S3 if AWS is available and BOTH expected .zst files exist
+if [[ "$AWS_AVAILABLE" == "true" ]] \
+   && aws s3 ls "s3://${s3_bucket}/${s3_path}/snps.aligned.fa.zst" >/dev/null 2>&1 \
    && aws s3 ls "s3://${s3_bucket}/${s3_path}/snps.vcf.zst" >/dev/null 2>&1; then
     echo "Found snippy results on S3 (.zst). Downloading to ${snippy_output_path} …" >&2
     mkdir -p "$(dirname "${snippy_output_path}")" "${snippy_output_path}"
@@ -63,7 +57,7 @@ if aws s3 ls "s3://${s3_bucket}/${s3_path}/snps.aligned.fa.zst" >/dev/null 2>&1 
     rm -f "${snippy_output_path}/snps.vcf.zst"
 
 else
-    # No compressed results found, run Snippy
+    # No cached results found or AWS unavailable, run Snippy locally
     fastq1="${fastq_outdir}/${sample}_1.fastq.gz"
     fastq2="${fastq_outdir}/${sample}_2.fastq.gz"
 
@@ -109,7 +103,12 @@ else
                --ref "${reference}" --force --cpus "${threads}"
     fi
 
-    # Compress with zstd before uploading, then remove local .zst
-    upload_zstd "${snippy_output_path}/snps.aligned.fa" "s3://${s3_bucket}/${s3_path}/snps.aligned.fa"
-    upload_zstd "${snippy_output_path}/snps.vcf"         "s3://${s3_bucket}/${s3_path}/snps.vcf"
+    # Upload to S3 if AWS is available
+    if [[ "$AWS_AVAILABLE" == "true" ]]; then
+        echo "Uploading compressed snippy results to S3…" >&2
+        upload_zstd "${snippy_output_path}/snps.aligned.fa" "s3://${s3_bucket}/${s3_path}/snps.aligned.fa"
+        upload_zstd "${snippy_output_path}/snps.vcf"         "s3://${s3_bucket}/${s3_path}/snps.vcf"
+    else
+        echo "Skipping S3 upload (AWS not available)" >&2
+    fi
 fi
