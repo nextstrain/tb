@@ -602,6 +602,37 @@ rule remove_time:
         with open(output[0], 'w') as fh:
             json.dump(data, fh, indent=2)
 
+rule get_year:
+    input:
+        metadata = "results/metadata.tsv",
+    output:
+        node_data = "results/year.json",
+        year_colors = "results/years_colors.tsv"
+    benchmark:
+        "benchmarks/get_year.txt"
+    log:
+        "logs/get_year.txt"
+    shell:
+        r"""
+        exec &> >(tee {log:q})
+
+        python scripts/get_year.py \
+            --metadata {input.metadata:q} \
+            --output-node-data {output.node_data:q} \
+            --output-colors {output.year_colors:q}
+        """
+
+rule combine_colors:
+    input:
+        year_colors = "results/years_colors.tsv",
+        base_colors = "defaults/colors.tsv"
+    output:
+        combined = "results/colors.tsv"
+    shell:
+        """
+        cat {input.year_colors} {input.base_colors} > {output.combined}
+        """
+
 rule export:
     input:
         tree = "results/tree.nwk",
@@ -609,9 +640,10 @@ rule export:
         branch_lengths = "results/branch_lengths_div_only.json",
         nt_muts = "results/nt_muts.json",
         aa_muts = "results/aa_muts.json",
+        year = "results/year.json",
         lineages = "results/lineages.json",
         auspice_config = config["files"]["auspice_config"],
-        colors = config["files"]["colors"],
+        colors = "results/colors.tsv",
         description=config["files"]["description"]
     output:
         auspice_json = "auspice/tb_global.json"
@@ -629,7 +661,7 @@ rule export:
             --tree {input.tree} \
             --metadata {input.meta} \
             --metadata-id-columns {params.strain_id} \
-            --node-data {input.branch_lengths} {input.nt_muts} {input.aa_muts} {input.lineages} \
+            --node-data {input.branch_lengths} {input.nt_muts} {input.aa_muts} {input.year:q} {input.lineages} \
             --colors {input.colors} \
             --auspice-config {input.auspice_config} \
             --description {input.description} \

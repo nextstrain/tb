@@ -43,36 +43,32 @@ colors = [ # <https://github.com/nextstrain/auspice/blob/master/src/util/globals
 ]
 
 
-def suggest_colors(years):
-    # A categorical scale looks better and helps understand the different outbreaks (IMO)
-    # cf a continuous scale, although that would be more technically accurate
+def write_colors(years, output_file):
     c = colors[len(years)] # colors is 1-indexed
-    
-    config = {
-        "key": "year",
-        "title": "Sampling Year",
-        "type": "categorical",
-        "scale": [[year, c[idx]] for idx,year in enumerate(years)]
-    }
 
-    print(f"Suggested auspice-config colors entry:")
-    print(json.dumps(config))
+    with open(output_file, 'w') as fh:
+        for idx, year in enumerate(years):
+            fh.write(f"year\t{year}\t{c[idx]}\n")
+
+    print(f"Wrote colors for {len(years)} years to {output_file}")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--metadata", required=True, help="Metadata TSV")
     parser.add_argument("--id-columns", nargs="+", help="ID columns in Metadata TSV", default=['accession'])
-    parser.add_argument("--output", required=True, help="Node Data JSON output")
+    parser.add_argument("--output-node-data", required=True, help="Node Data JSON output")
+    parser.add_argument("--output-colors", required=True, help="Year colors TSV output")
     args = parser.parse_args()
 
     m = read_metadata(args.metadata, id_columns=args.id_columns)
     nodes = {name: {'year': date.split('-')[0]} for name,date in zip(m.index, m['date']) if date and not date.startswith('X')}
-    with open(args.output, 'w') as fh:
+    with open(args.output_node_data, 'w') as fh:
         json.dump({"nodes": nodes}, fh)
 
     try:
-        suggest_colors(sorted(set([x['year'] for x in nodes.values()])))
-    except Exception:
-        print("Failed to suggest colours for the auspice config")
-
+        write_colors(sorted(set([x['year'] for x in nodes.values()])), args.output_colors)
+    except Exception as e:
+        print(f"Failed to generate year colors: {e}")
+        # Create empty colors file so Snakemake rule doesn't fail
+        open(args.output_colors, 'w').close()
