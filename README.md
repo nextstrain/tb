@@ -41,7 +41,13 @@ With AWS S3 caching enabled, the workflow will:
 - Skip S3 operations if the bucket is inaccessible
 
 
-#### Nextstrain's automated builds:
+### Nextstrain internal usage:
+The Nextstrain pipeline can automatically deploy resulting builds within the auspice folder to nextstrain.org by running:
+
+```
+nextstrain build --image ghcr.io/nextstrain/tb:latest . deploy_all --configfile build-configs/nextstrain-automation/config.yaml
+```
+
 Nextstrain's automated builds (run via GitHub Actions) use AWS S3 caching by setting `s3_bucket: "nextstrain-data"` in `build-configs/nextstrain-automation/config.yaml`. Results of tb-profiler and snippy analyses are stored in the `nextstrain-data` bucket for SRA samples that have already been analyzed in previous runs of this workflow, with the following file paths:
 
 ##### tb-profiler
@@ -52,13 +58,7 @@ Nextstrain's automated builds (run via GitHub Actions) use AWS S3 caching by set
 
 These results files should be deleted from the S3 bucket if changes are made to the workflow that would influence the files, such as changes to the parameters used in the tb-profiler or snippy analysis steps, updates to the tb-profiler or snippy installations, or addition of new sequence quality filtering steps prior to running tb-profiler or snippy.
 
-### Deploying builds
 
-The pipeline can automatically deploy resulting builds within the auspice folder to nextstrain.org by running:
-
-```
-nextstrain build --image ghcr.io/nextstrain/tb:latest . deploy_all --configfile build-configs/nextstrain-automation/config.yaml
-```
 
 ## Repo history
 The current Nextstrain github repo differs substantially from the original version of the repo.
