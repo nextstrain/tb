@@ -28,6 +28,11 @@
       "type": "categorical"
     },
     {
+      "key": "year",
+      "title": "Sampling year",
+      "type": "categorical"
+    },
+    {
       "key": "main_lineage",
       "title": "Main Lineage",
       "type": "categorical"
@@ -202,5 +207,8 @@
     "map",
     "entropy",
     "frequencies"
+  ],
+  "metadata_columns": [
+    "date"
   ]
 }
