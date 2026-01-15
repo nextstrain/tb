@@ -131,11 +131,11 @@ rule run_tbprofiler:
         eval "$(conda shell.bash hook)"
         conda activate tb-profiler
         scripts/run_tbprofiler.sh {wildcards.sample} \
-        {params.s3_bucket} \
         {params.tb_output_path} \
         {params.fastq_outdir} \
         {params.tb_outdir} \
         {threads} \
+        {params.s3_bucket} \
         || echo "tbprofiler failed at sample {wildcards.sample}"
         rm -f data/tbprofiler/bam/{wildcards.sample}.bam*
         rm -f data/tbprofiler/vcf/{wildcards.sample}.targets.vcf.gz
@@ -208,11 +208,11 @@ rule run_snippy:
         eval "$(conda shell.bash hook)"
         conda activate snippy
         scripts/run_snippy.sh {wildcards.sample} \
-        {params.s3_bucket} \
         {params.snippy_output_path} \
         {params.fastq_outdir} \
         {params.reference} \
         {threads} \
+        {params.s3_bucket} \
         || echo "snippy failed at sample {wildcards.sample}"
         rm -f data/fastq/{wildcards.sample}_*.fastq.gz
         rm -fr data/snippy/{wildcards.sample}/reference

@@ -23,24 +23,42 @@ This workflow requires installation of the [Nextstrain CLI](https://docs.nextstr
 ```
 nextstrain build --image ghcr.io/nextstrain/tb:latest .
 ```
-### Deploying builds
 
-The pipeline can automatically deploy resulting builds within the auspice folder
-to nextstrain.org by running:
+### AWS S3 caching of tb-profiler and snippy results (optional)
+
+By default, AWS S3 caching is **disabled**. All tb-profiler and snippy analyses run locally without uploading or downloading results from S3.
+
+#### To enable AWS S3 caching:
+1. Edit `defaults/config.yaml` and set `s3_bucket` to your bucket name:
+   ```yaml
+   s3_bucket: "your-bucket-name"
+   ```
+2. Ensure AWS credentials are configured (via `aws configure` or environment variables)
+
+With AWS S3 caching enabled, the workflow will:
+- Download pre-computed tb-profiler and snippy results from your S3 bucket for samples already analyzed
+- Upload new tb-profiler and snippy results for future runs
+- Skip S3 operations if the bucket is inaccessible
+
+
+### Nextstrain internal usage:
+The Nextstrain pipeline can automatically deploy resulting builds within the auspice folder to nextstrain.org by running:
 
 ```
 nextstrain build --image ghcr.io/nextstrain/tb:latest . deploy_all --configfile build-configs/nextstrain-automation/config.yaml
 ```
 
-## Storing tbprofiler and snippy results
-For SRA samples that have already been analyzed in previous runs of this workflow, results of tb-profiler and snippy analyses are stored in an S3 bucket:
-### tb-profiler
+Nextstrain's automated builds (run via GitHub Actions) use AWS S3 caching by setting `s3_bucket: "nextstrain-data"` in `build-configs/nextstrain-automation/config.yaml`. Results of tb-profiler and snippy analyses are stored in the `nextstrain-data` bucket for SRA samples that have already been analyzed in previous runs of this workflow, with the following file paths:
+
+##### tb-profiler
 * `s3://nextstrain-data/files/workflows/tb/data/tbprofiler/results/{sample}.results.json.zst`
-### snippy 
+##### snippy 
 * `s3://nextstrain-data/files/workflows/tb/data/snippy/{sample}/snps.aligned.fa.zst`
 * `s3://nextstrain-data/files/workflows/tb/data/snippy/{sample}/snps.vcf.zst`
 
 These results files should be deleted from the S3 bucket if changes are made to the workflow that would influence the files, such as changes to the parameters used in the tb-profiler or snippy analysis steps, updates to the tb-profiler or snippy installations, or addition of new sequence quality filtering steps prior to running tb-profiler or snippy.
+
+
 
 ## Repo history
 The current Nextstrain github repo differs substantially from the original version of the repo.
