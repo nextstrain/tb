@@ -11,22 +11,22 @@ s3_dst_unversioned="${6:-}"
 # Check if S3 bucket is configured and accessible
 USE_S3=false
 if [[ -n "${s3_dst_unversioned}" ]]; then
-    if aws s3 ls "s3://${s3_dst_unversioned}" > /dev/null 2>&1; then
+    if aws s3 ls "${s3_dst_unversioned}" > /dev/null 2>&1; then
         USE_S3=true
         echo "S3 bucket accessible. Will use S3 caching." >&2
     else
-        echo "Warning: Cannot access s3://${s3_dst_unversioned}. Running without S3 caching." >&2
+        echo "Warning: Cannot access ${s3_dst_unversioned}. Running without S3 caching." >&2
     fi
 else
     echo "S3 bucket not specified. Running without S3 caching." >&2
 fi
 
 # Try to download from S3 if enabled and results exist
-if [[ "$USE_S3" == "true" ]] && aws s3 ls "s3://${s3_dst_unversioned}/${tb_output_path}.zst" >/dev/null 2>&1; then
+if [[ "$USE_S3" == "true" ]] && aws s3 ls "${s3_dst_unversioned}/${tb_output_path}.zst" >/dev/null 2>&1; then
     echo "Found tb-profiler results on S3 (.zst). Downloading to ${tb_output_path} …" >&2
     mkdir -p "$(dirname "${tb_output_path}")"
 
-    aws s3 cp "s3://${s3_dst_unversioned}/${tb_output_path}.zst" "${tb_output_path}.zst"
+    aws s3 cp "${s3_dst_unversioned}/${tb_output_path}.zst" "${tb_output_path}.zst"
     zstd -d -f "${tb_output_path}.zst" -o "${tb_output_path}"
     rm -f "${tb_output_path}.zst"
 
@@ -78,7 +78,7 @@ else
         echo "Uploading compressed tb-profiler result to S3…" >&2
         # Compress -> upload -> remove local .zst (leave plain file locally)
         zstd -f -T"${threads}" -19 "${tb_output_path}" -o "${tb_output_path}.zst"
-        aws s3 cp "${tb_output_path}.zst" "s3://${s3_dst_unversioned}/${tb_output_path}.zst"
+        aws s3 cp "${tb_output_path}.zst" "${s3_dst_unversioned}/${tb_output_path}.zst"
         rm -f "${tb_output_path}.zst"
     fi
 fi

@@ -11,11 +11,11 @@ s3_dst_unversioned="${6:-}"
 # Check if S3 bucket is configured and accessible
 USE_S3=false
 if [[ -n "${s3_dst_unversioned}" ]]; then
-    if aws s3 ls "s3://${s3_dst_unversioned}" > /dev/null 2>&1; then
+    if aws s3 ls "${s3_dst_unversioned}" > /dev/null 2>&1; then
         USE_S3=true
         echo "S3 bucket accessible. Will use S3 caching." >&2
     else
-        echo "Warning: Cannot access s3://${s3_dst_unversioned}. Running without S3 caching." >&2
+        echo "Warning: Cannot access ${s3_dst_unversioned}. Running without S3 caching." >&2
     fi
 else
     echo "S3 bucket not specified. Running without S3 caching." >&2
@@ -43,18 +43,18 @@ upload_zstd() {
 
 # Try to download from S3 if enabled and BOTH expected .zst files exist
 if [[ "$USE_S3" == "true" ]] \
-   && aws s3 ls "s3://${s3_dst_unversioned}/${snippy_output_path}/snps.aligned.fa.zst" >/dev/null 2>&1 \
-   && aws s3 ls "s3://${s3_dst_unversioned}/${snippy_output_path}/snps.vcf.zst" >/dev/null 2>&1; then
+   && aws s3 ls "${s3_dst_unversioned}/${snippy_output_path}/snps.aligned.fa.zst" >/dev/null 2>&1 \
+   && aws s3 ls "${s3_dst_unversioned}/${snippy_output_path}/snps.vcf.zst" >/dev/null 2>&1; then
     echo "Found snippy results on S3 (.zst). Downloading to ${snippy_output_path} …" >&2
     mkdir -p "$(dirname "${snippy_output_path}")" "${snippy_output_path}"
 
     # Download and decompress aligned.fa, then remove local .zst
-    aws s3 cp "s3://${s3_dst_unversioned}/${snippy_output_path}/snps.aligned.fa.zst" "${snippy_output_path}/snps.aligned.fa.zst"
+    aws s3 cp "${s3_dst_unversioned}/${snippy_output_path}/snps.aligned.fa.zst" "${snippy_output_path}/snps.aligned.fa.zst"
     zstd -d -f "${snippy_output_path}/snps.aligned.fa.zst" -o "${snippy_output_path}/snps.aligned.fa"
     rm -f "${snippy_output_path}/snps.aligned.fa.zst"
 
     # Download and decompress vcf, then remove local .zst
-    aws s3 cp "s3://${s3_dst_unversioned}/${snippy_output_path}/snps.vcf.zst" "${snippy_output_path}/snps.vcf.zst"
+    aws s3 cp "${s3_dst_unversioned}/${snippy_output_path}/snps.vcf.zst" "${snippy_output_path}/snps.vcf.zst"
     zstd -d -f "${snippy_output_path}/snps.vcf.zst" -o "${snippy_output_path}/snps.vcf"
     rm -f "${snippy_output_path}/snps.vcf.zst"
 
@@ -108,7 +108,7 @@ else
     # Upload to S3 if enabled
     if [[ "$USE_S3" == "true" ]]; then
         echo "Uploading compressed snippy results to S3…" >&2
-        upload_zstd "${snippy_output_path}/snps.aligned.fa" "s3://${s3_dst_unversioned}/${snippy_output_path}/snps.aligned.fa"
-        upload_zstd "${snippy_output_path}/snps.vcf"         "s3://${s3_dst_unversioned}/${snippy_output_path}/snps.vcf"
+        upload_zstd "${snippy_output_path}/snps.aligned.fa" "${s3_dst_unversioned}/${snippy_output_path}/snps.aligned.fa"
+        upload_zstd "${snippy_output_path}/snps.vcf"         "${s3_dst_unversioned}/${snippy_output_path}/snps.vcf"
     fi
 fi
