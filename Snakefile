@@ -115,7 +115,7 @@ rule run_tbprofiler:
     output:
         touch("data/tbprofiler/flags/{sample}_flag.txt"),
     params:
-        s3_bucket=config["s3_bucket"],
+        s3_dst_unversioned=config["s3_dst_unversioned"],
         tb_output_path="data/tbprofiler/results/{sample}.results.json",
         fastq_outdir="data/fastq",
         tb_outdir="data/tbprofiler",
@@ -135,7 +135,7 @@ rule run_tbprofiler:
         {params.fastq_outdir} \
         {params.tb_outdir} \
         {threads} \
-        {params.s3_bucket} \
+        {params.s3_dst_unversioned} \
         || echo "tbprofiler failed at sample {wildcards.sample}"
         rm -f data/tbprofiler/bam/{wildcards.sample}.bam*
         rm -f data/tbprofiler/vcf/{wildcards.sample}.targets.vcf.gz
@@ -192,7 +192,7 @@ rule run_snippy:
         touch("data/snippy/flags/{sample}_flag.txt"),
     priority: 1000
     params:
-        s3_bucket=config["s3_bucket"],
+        s3_dst_unversioned=config["s3_dst_unversioned"],
         snippy_output_path="data/snippy/{sample}",
         fastq_outdir="data/fastq",
         reference=config["files"]["reference_genbank"],
@@ -212,7 +212,7 @@ rule run_snippy:
         {params.fastq_outdir} \
         {params.reference} \
         {threads} \
-        {params.s3_bucket} \
+        {params.s3_dst_unversioned} \
         || echo "snippy failed at sample {wildcards.sample}"
         rm -f data/fastq/{wildcards.sample}_*.fastq.gz
         rm -fr data/snippy/{wildcards.sample}/reference

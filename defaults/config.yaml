@@ -1,5 +1,5 @@
 strain_id_field: "accession"
-s3_bucket: ""
+s3_dst_unversioned: ""
 files:
     exclude: "defaults/dropped_strains.txt"
     reference_genbank: "defaults/GCF_000195955.2_ASM19595v2_genomic.gbff"
