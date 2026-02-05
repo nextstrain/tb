@@ -41,5 +41,5 @@ jobs:
           --cpus 72 \
           --memory 140GiB \
           . \
-          deploy_all \
+          deploy_all upload_all \
           --configfile build-configs/nextstrain-automation/config.yaml

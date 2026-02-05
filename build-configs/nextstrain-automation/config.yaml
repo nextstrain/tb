@@ -1,5 +1,12 @@
 custom_rules:
   - build-configs/nextstrain-automation/deploy.smk
+  - build-configs/nextstrain-automation/upload.smk
 
 s3_dst_unversioned: "s3://nextstrain-data-unversioned/files/workflows/tb"
+s3_dst: "s3://nextstrain-data/files/workflows/tb"
 deploy_url: "s3://nextstrain-data"
+cloudfront_domain: "data.nextstrain.org"
+
+files_to_upload:
+  filtered.vcf.gz: results/filtered.vcf.gz
+  metadata.tsv.zst: results/metadata.tsv
