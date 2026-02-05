@@ -30,7 +30,7 @@ rule upload_to_s3:
         current_basedir = str(workflow.current_basedir),
     shell:
         """
-        {params.current_basedir}/../../../shared/vendored/scripts/upload-to-s3 \
+        {params.current_basedir}/../../vendored/scripts/upload-to-s3 \
             {params.quiet} \
             {input.file_to_upload:q} \
             {params.s3_dst:q}/{wildcards.remote_file:q} \
