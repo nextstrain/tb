@@ -38,8 +38,8 @@ jobs:
           --aws-batch \
           --detach \
           --no-download \
-          --cpus 72 \
-          --memory 140GiB \
+          --cpus 32 \
+          --memory 60GiB \
           . \
           deploy_all \
           --configfile build-configs/nextstrain-automation/config.yaml

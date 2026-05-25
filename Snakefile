@@ -119,7 +119,7 @@ rule run_tbprofiler:
         tb_output_path="data/tbprofiler/results/{sample}.results.json",
         fastq_outdir="data/fastq",
         tb_outdir="data/tbprofiler",
-    threads: 4
+    threads: 2
     log:
         "logs/tbprofiler_{sample}.txt",
     benchmark:
@@ -196,7 +196,7 @@ rule run_snippy:
         snippy_output_path="data/snippy/{sample}",
         fastq_outdir="data/fastq",
         reference=config["files"]["reference_genbank"],
-    threads: 4
+    threads: 2
     log:
         "logs/snippy_{sample}.txt",
     benchmark:
